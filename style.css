@@ -1,0 +1,1000 @@
+/* =========================================================
+   TACTCL BOARD — STYLESHEET
+   Controls the appearance of the board, pitch, players,
+   buttons, sidebar, and responsive layout.
+   ========================================================= */
+
+/* BRAND COLORS — Change these to update the theme globally. */
+:root {
+  --navy: #1a2b45;
+  --navy-2: #17263a;
+  --panel: #3f437a;
+  --page: #9fc1e2;
+  --text: #172235;
+  --muted: #7c8797;
+  --line: #597aa1;
+  --blue: #836ce1;
+  --green: #28794e;
+  --home: #3a2d8f;
+  --away: #e8edf3;
+  --button: #d2dbe8;
+}
+
+/* Basic browser reset. */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--page);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+}
+
+button, input, select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* ==================== TOP NAVIGATION ==================== */
+
+.topbar {
+  height: 68px;
+  background: var(--navy);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 26px;
+  gap: 30px;
+  border-bottom: 1px solid #26364a;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  text-decoration: none;
+  font-family: Manrope, sans-serif;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  font-size: 16px;
+  min-width: 205px;
+}
+
+.brand small {
+  display: block;
+  color: #9eacbd;
+  font-size: 9px;
+  letter-spacing: 3px;
+  margin-top: -2px;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--blue);
+  color: var(--navy);
+  border-radius: 8px;
+  font-size: 19px;
+}
+
+.board-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #dce4ed;
+  font-size: 13px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background: #5bc18a;
+  border-radius: 50%;
+}
+
+.icon-button {
+  border: 0;
+  background: transparent;
+  color: #9eacbd;
+  font-size: 16px;
+}
+
+.top-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 9px;
+}
+
+.btn {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 9px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: .15s ease;
+}
+
+.btn-quiet {
+  background: transparent;
+  border-color: #3a485a;
+  color: #dce4ed;
+}
+
+.btn-quiet:hover {
+  background: #24364b;
+}
+
+.btn-primary {
+  background: var(--blue);
+  color: #172235;
+}
+
+.btn-primary:hover {
+  background: #332a99;
+}
+
+/* ==================== MAIN APP LAYOUT ==================== */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: calc(100vh - 68px);
+}
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 23px 17px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 23px;
+}
+
+.sidebar-section {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 19px;
+}
+
+.section-label {
+  color: #96a0ad;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  margin: 0 0 13px;
+}
+
+/* Home and Away team selector. */
+.team-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: var(--button);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.team-tab {
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 5px;
+  color: #778394;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.team-tab.active {
+  background: white;
+  color: var(--text);
+  box-shadow: 0 1px 4px #17223514;
+}
+
+.team-dot,
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.home-dot {
+  background: var(--home);
+}
+
+.away-dot {
+  background: #64758a;
+}
+
+.field-label {
+  display: block;
+  color: #6d7888;
+  font-size: 10px;
+  font-weight: 700;
+  margin: 11px 0 6px;
+}
+
+.select-control,
+.text-control {
+  width: 100%;
+  border: 1px solid #e1e6ec;
+  background: var(--button);
+  color: #263449;
+  border-radius: 6px;
+  padding: 9px 10px;
+  font-size: 11px;
+  outline: none;
+}
+
+.select-control:focus,
+.text-control:focus {
+  border-color: var(--blue);
+}
+
+.wide-button {
+  width: 100%;
+  border: 1px solid #e1e6ec;
+  background: var(--button);
+  color: #455267;
+  padding: 9px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 11px;
+}
+
+.wide-button:hover {
+  background: #eef2f5;
+}
+
+/* Sidebar tool buttons. */
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.tool-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid #e5e9ee;
+  background: var(--button);
+  color: #657184;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.tool-button span {
+  font-size: 16px;
+  color: #33445b;
+  width: 17px;
+  text-align: center;
+}
+
+.tool-button.active {
+  border-color: #806ed7;
+  background: var(--button);
+  color: #221a76;
+}
+
+.tool-button.active span {
+  color: #37259a;
+}
+
+.empty-selection {
+  font-size: 10px;
+  line-height: 1.6;
+  color: #9aa3af;
+}
+
+.danger-button {
+  color: #5e4bb3;
+  border-color: #dedaf0;
+  background: #fffafa;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 15px;
+  color: #a0a9b4;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.sidebar-footer span {
+  display: block;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: .8px;
+  margin-top: 5px;
+}
+
+/* ==================== WORKSPACE HEADER ==================== */
+
+.workspace {
+  padding: 26px clamp(18px, 3vw, 44px) 20px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto 20px;
+  width: min(100%, 1100px);
+}
+
+.workspace-toolbar h1 {
+  font: 800 20px Manrope, sans-serif;
+  margin: 0 0 4px;
+  color: #1b2a3d;
+}
+
+.workspace-toolbar p {
+  margin: 0;
+  font-size: 11px;
+  color: #01275a;
+}
+
+.view-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.view-actions .btn {
+  color: #536176;
+  border-color: #dfe5eb;
+  background: white;
+}
+
+.view-actions .btn:hover {
+  background: #f8fafc;
+}
+
+/* ==================== SOCCER PITCH ====================
+   This is a landscape pitch:
+   - Home team starts on the LEFT.
+   - Away team starts on the RIGHT.
+   - Goals are on the left and right ends.
+   ====================================================== */
+
+/* Outer container: includes the pitch AND space for both goals */
+.pitch-stage {
+  width: min(100%, 1100px);
+  aspect-ratio: 1060 / 640;
+  position: relative;
+  margin: 0 auto;
+}
+
+/* The whole green board: grass margin + field + goals */
+.pitch {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 5px solid #f9fbfc;
+  border-radius: 5px;
+  background: #2d8054;
+  box-shadow: 0 12px 32px #1722351c;
+  touch-action: none;
+  user-select: none;
+}
+
+/* The white-lined playing field, inset to leave grass on every side */
+.field-markings {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 3%;
+  bottom: 3%;
+  border: 2px solid #ffffffb8;   /* touchlines + goal lines */
+  overflow: hidden;              /* keeps corner arcs clipped */
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Goals: sit on the grass, flush against the goal lines */
+.goal-mouth {
+  position: absolute;
+  top: 44.8%;
+  width: 2.8%;
+  height: 10.4%;
+  z-index: 1;
+  pointer-events: none;
+  background-color: #1f5c3f;
+  background-image:
+    repeating-linear-gradient(0deg,  transparent 0, transparent 5px, #ffffff45 5px, #ffffff45 6px),
+    repeating-linear-gradient(90deg, transparent 0, transparent 5px, #ffffff45 5px, #ffffff45 6px);
+  border: 2px solid #fff;
+  box-shadow: inset 0 0 6px #00000055;
+}
+
+.goal-left {
+  left: 2.2%;                    /* 5% field inset - 2.8% goal width */
+  border-right: 0;
+  border-radius: 2px 0 0 2px;
+}
+
+.goal-right {
+  right: 2.2%;
+  border-left: 0;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Alternating stripes create a grass effect. */
+.pitch-stripes {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    #ffffff08 0,
+    #ffffff08 10%,
+    transparent 10%,
+    transparent 20%
+  );
+}
+
+/* Shared positioning for field markings. */
+.field-line,
+.center-circle,
+.penalty-area,
+.six-area,
+.goal,
+.center-spot,
+.penalty-spot,
+.penalty-arc,
+.corner {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.field-line {
+  background: #ffffffb8;
+}
+
+/* Verticl halfway line. */
+.halfway {
+  width: 1px;
+  height: 100%;
+  left: 50%;
+  top: 0%;
+}
+
+/* Center circle. */
+.center-circle {
+  width: 19%;
+  aspect-ratio: 1;
+  border: 1.5px solid #ffffffb8;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.center-spot {
+  width: 5px;
+  height: 5px;
+  background: #fff;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Penalty areas at both ends. */
+.penalty-area {
+  width: 16%;
+  height: 54%;
+  top: 23%;
+  border: 1.5px solid #ffffffb8;
+}
+
+.left-area {
+  left: 0;
+  border-left: 0;
+}
+
+.right-area {
+  right: 0;
+  border-right: 0;
+}
+
+/* Six-yard boxes. */
+.six-area {
+  width: 6%;
+  height: 25%;
+  top: 37.5%;
+  border: 1.5px solid #ffffffb8;
+}
+
+.left-six {
+  left: 0;
+  border-left: 0;
+}
+
+.right-six {
+  right: 0;
+  border-right: 0;
+}
+
+
+/* Penalty spots. */
+.penalty-spot {
+  width: 5px;
+  height: 5px;
+  background: white;
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.left-spot {
+  left: 11%;
+}
+
+.right-spot {
+  right: 11%;
+}
+
+/* Penalty arcs. */
+.penalty-arc {
+  width: 8%;
+  height: 20%;
+  top: 40%;
+  border: 1.5px solid #ffffffb8;
+  border-radius: 50%;
+}
+
+.left-arc {
+  left: 12%;
+  clip-path: inset(0 0 0 50%);
+}
+
+.right-arc {
+  right: 12%;
+  clip-path: inset(0 50% 0 0);
+}
+
+/* Pitch corner arcs. */
+.corner {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid #ffffffb8;
+  border-radius: 50%;
+}
+
+.corner-tl { top: -7px; left: -7px; }
+.corner-tr { top: -7px; right: -7px; }
+.corner-bl { bottom: -7px; left: -7px; }
+.corner-br { bottom: -7px; right: -7px; }
+
+/* Layers that hold player markers and tactical drawings. */
+.players-layer,
+.drawing-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.drawing-layer {
+  z-index: 3;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.players-layer {
+  z-index: 4;
+}
+
+/* ==================== PLAYER MARKERS ==================== */
+
+.player {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px #10203055;
+  cursor: grab;
+  color: #172235;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  touch-action: none;
+}
+
+.player.home {
+  background: var(--home);
+}
+
+.player.away {
+  background: var(--away);
+}
+
+/* Highlight the player currently selected. */
+.player.selected {
+  outline: 3px solid #fff;
+  box-shadow: 0 0 0 5px var(--blue), 0 3px 9px #10203066;
+  z-index: 8;
+}
+
+/* Player name underneath their marker. */
+.player .player-label {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px #102030;
+  pointer-events: none;
+}
+
+/* Soccer ball marker. */
+.ball {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 1px solid #263449;
+  box-shadow: 0 2px 5px #10203066;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Text and legend below the pitch. */
+.workspace-footer {
+  width: min(100%, 1100px);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 13px auto 0;
+  color: #8490a0;
+  font-size: 10px;
+}
+
+.ball-legend {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid #657184;
+  margin: 0 5px 0 12px;
+}
+
+/* Small confirmation messages. */
+.toast {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translate(-50%, 20px);
+  opacity: 0;
+  pointer-events: none;
+  background: var(--navy);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 7px;
+  font-size: 11px;
+  box-shadow: 0 5px 20px #0002;
+  transition: .2s;
+  z-index: 20;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+@media (max-width: 850px) {
+  .app-shell {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 18px 12px;
+  }
+
+  .workspace {
+    padding: 20px 14px;
+  }
+
+  .topbar {
+    padding: 0 14px;
+    gap: 12px;
+  }
+
+  .brand {
+    min-width: auto;
+  }
+
+  .board-title {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .app-shell {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+
+  .sidebar-section {
+    padding-bottom: 12px;
+  }
+
+  .player-editor {
+    grid-column: span 2;
+  }
+
+  .sidebar-footer {
+    display: none;
+  }
+
+  .workspace {
+    padding: 18px 8px;
+  }
+
+  .workspace-toolbar {
+    padding: 0 8px;
+    align-items: flex-start;
+  }
+
+  .workspace-toolbar h1 {
+    font-size: 17px;
+  }
+
+  .view-actions {
+    flex-direction: column;
+  }
+
+  .view-actions .btn {
+    padding: 7px;
+  }
+
+  .topbar {
+    height: 60px;
+  }
+
+  .top-actions .btn {
+    padding: 8px;
+  }
+
+  .top-actions .btn span {
+    display: none;
+  }
+
+  .brand {
+    font-size: 13px;
+  }
+
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .pitch {
+    border-width: 3px;
+  }
+
+  .player {
+    width: 26px;
+    height: 26px;
+    font-size: 8px;
+  }
+
+  .player .player-label {
+    top: 28px;
+    font-size: 7px;
+  }
+
+  .workspace-footer {
+    padding: 0 7px;
+    font-size: 8px;
+  }
+}
+
+/* =========================================================
+   GROUPS FEATURE
+   Styles the player grouping controls and polygons.
+   ========================================================= */
+
+/* Groups settings panel in the sidebar. */
+.group-panel {
+  margin-top: 14px;
+  padding: 12px;
+  background: #f8fafb;
+  border: 1px solid #e5e9ee;
+  border-radius: 8px;
+}
+
+.group-panel h3 {
+  margin: 0 0 8px;
+  color: #34445a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.group-panel p {
+  margin: 0 0 10px;
+  color: #8994a2;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* Color picker. */
+#groupColor {
+  width: 100%;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid #e1e6ec;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+/* Highlight players currently selected for a group. */
+.player.group-selected {
+  outline: 3px solid #ffffff;
+  box-shadow: 0 0 0 5px #301b7c, 0 3px 9px #10203066;
+}
+
+/* List of groups already created. */
+.groups-list {
+  margin-top: 14px;
+}
+
+.group-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #e5e9ee;
+}
+
+.group-list-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #455267;
+  font-size: 10px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.group-color-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.group-delete-button {
+  border: 0;
+  background: transparent;
+  color: #b34b4b;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px;
+}
+
+/* Slightly adjust the panel on smaller screens. */
+@media (max-width: 620px) {
+  .group-panel {
+    grid-column: span 2;
+  }
+}
+
+
+
+/* =========================================================
+   ANIMATION TIMELINE
+   Positioned underneath the soccer pitch.
+   ========================================================= */
+
+.animation-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.animation-toolbar[hidden] {
+  display: none;
+}
+
+/* Frame selection row */
+
+.frame-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.frame-button {
+  min-width: 85px;
+  padding: 9px 14px;
+  border: 1px solid #d8dde5;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #253247;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.frame-button.active {
+  background: var(--blue);
+  border-color: var(--navy);
+  color: #172435;
+}
+
+.frame-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Animation action buttons */
+
+.animation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.animation-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

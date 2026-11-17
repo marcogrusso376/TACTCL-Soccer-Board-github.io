@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Basic page information -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>TACTCL | Soccer</title>
+
+  <!-- Website fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Connect our CSS stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- =====================================================
+       1. TOP NAVIGATION BAR
+       Contains the TACTCL branding and save/export buttons.
+       ===================================================== -->
+
+  <header class="topbar">
+
+    <!-- Brand logo and name -->
+    <a href="#" class="brand">
+
+      <div class="brand-mark">T</div>
+
+      <div>
+        TACTCL
+        <small>SOCCER</small>
+      </div>
+
+    </a>
+
+
+    <!-- Current board name -->
+    <div class="board-title">
+
+      <span class="status-dot"></span>
+
+      <span id="boardName">Untitled tactic</span>
+
+    </div>
+
+
+    <!-- Main actions -->
+    <div class="top-actions">
+
+      <button class="btn btn-quiet" id="renameBtn">
+        Rename
+      </button>
+
+      <button class="btn btn-quiet" id="exportBtn">
+        Export
+      </button>
+
+      <button class="btn btn-primary" id="saveBtn">
+        Save tactic
+      </button>
+
+    </div>
+
+  </header>
+
+
+  <!-- =====================================================
+       2. MAIN APPLICATION LAYOUT
+       Divides the screen into the sidebar and workspace.
+       ===================================================== -->
+
+  <main class="app-shell">
+
+
+    <!-- ===================================================
+         3. LEFT SIDEBAR
+         Team selection, formations, tools, and player editing.
+         =================================================== -->
+
+    <aside class="sidebar">
+
+
+      <!-- TEAM SELECTION AND FORMATIONS -->
+      <section class="sidebar-section">
+
+        <h2 class="section-label">TEAMS & FORMATIONS</h2>
+
+
+        <!-- Choose which team receives new players -->
+        <div class="team-switch">
+
+          <button
+            class="team-tab active"
+            data-team="home">
+
+            <span class="team-dot home-dot"></span>
+            Home
+
+          </button>
+
+
+          <button
+            class="team-tab"
+            data-team="away">
+
+            <span class="team-dot away-dot"></span>
+            Away
+
+          </button>
+
+        </div>
+
+
+        <!-- Home team formation -->
+        <label class="field-label" for="formationSelect">
+          Home formation
+        </label>
+
+        <select class="select-control" id="formationSelect">
+
+          <option value="4-3-3">4-3-3</option>
+          <option value="4-4-2">4-4-2</option>
+          <option value="4-2-3-1">4-2-3-1</option>
+          <option value="3-5-2">3-5-2</option>
+          <option value="3-4-3">3-4-3</option>
+          <option value="5-3-2">5-3-2</option>
+
+        </select>
+
+
+        <!-- Away team formation -->
+        <label class="field-label" for="awayFormationSelect">
+          Away formation
+        </label>
+
+        <select class="select-control" id="awayFormationSelect">
+
+          <option value="4-3-3">4-3-3</option>
+          <option value="4-4-2">4-4-2</option>
+          <option value="4-2-3-1">4-2-3-1</option>
+          <option value="3-5-2">3-5-2</option>
+          <option value="3-4-3">3-4-3</option>
+          <option value="5-3-2">5-3-2</option>
+
+        </select>
+
+
+        <!-- Reset field -->
+        <button class="wide-button" id="resetFieldBtn">
+          Reset field
+        </button>
+
+      </section>
+
+
+
+      <!-- BOARD TOOLS -->
+      <section class="sidebar-section">
+
+        <h2 class="section-label">BOARD TOOLS</h2>
+
+        <div class="tool-grid">
+
+
+          <!-- Select and move players -->
+          <button class="tool-button active" data-tool="select">
+            <span>↖</span>
+            Select
+          </button>
+
+
+          <!-- Add a new player -->
+          <button class="tool-button" data-tool="player">
+            <span>+</span>
+            Player
+          </button>
+
+
+          <!-- Add or reposition the ball -->
+          <button class="tool-button" data-tool="ball">
+            <span>⚽</span>
+            Ball
+          </button>
+
+
+          <!-- Draw an arrow -->
+          <button class="tool-button" data-tool="arrow">
+            <span>↗</span>
+            Arrow
+          </button>
+
+
+          <!-- Draw a straight line -->
+          <button class="tool-button" data-tool="line">
+            <span>／</span>
+            Line
+          </button>
+
+
+          <!-- Freehand drawing -->
+          <button class="tool-button" data-tool="draw">
+            <span>✎</span>
+            Draw
+          </button>
+
+
+          <!-- Remove players and drawings -->
+          <button class="tool-button" data-tool="eraser">
+            <span>⌫</span>
+            Eraser
+          </button>
+
+          <!-- Select multiple players and create a tactical group -->
+          <button class="tool-button" data-tool="group">
+            <span>⬡</span>
+            Groups
+          </button>
+
+        </div>
+
+        <!-- GROUP SETTINGS -->
+        <div class="group-panel" id="groupPanel" hidden>
+
+          <h3>PLAYER GROUP</h3>
+
+          <p id="groupInstructions">
+            Select three or more players on the pitch.
+          </p>
+
+          <!-- Name the tactical group -->
+          <label class="field-label" for="groupName">
+            Group name
+          </label>
+
+          <input
+            class="text-control"
+            type="text"
+            id="groupName"
+            placeholder="e.g. Midfield Triangle"
+            value="New group"
+          >
+
+          <!-- Choose the polygon color -->
+          <label class="field-label" for="groupColor">
+            Group color
+          </label>
+
+          <input
+            type="color"
+            id="groupColor"
+            value="#e4b84c"
+          >
+
+          <!-- Finish or cancel the current selection -->
+          <button class="wide-button" id="finishGroupBtn">
+            Create group
+          </button>
+
+          <button class="wide-button danger-button" id="cancelGroupBtn">
+            Cancel selection
+          </button>
+
+          <!-- Existing groups will appear here -->
+          <div id="groupsList"></div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- PLAYER EDITOR -->
+      <section class="sidebar-section player-editor">
+
+        <h2 class="section-label">PLAYER SETTINGS</h2>
+
+
+        <!-- Shown when no player is selected -->
+        <p class="empty-selection" id="emptySelection">
+
+          Select a player on the pitch to edit their
+          name, number, and team.
+
+        </p>
+
+
+        <!-- Shown when a player is selected -->
+        <div id="playerFields" hidden>
+
+
+          <!-- Change player name -->
+          <label class="field-label" for="playerName">
+            Player name
+          </label>
+
+          <input
+            class="text-control"
+            type="text"
+            id="playerName"
+            placeholder="Enter player name"
+          >
+
+
+          <!-- Change shirt number -->
+          <label class="field-label" for="playerNumber">
+            Shirt number
+          </label>
+
+          <input
+            class="text-control"
+            type="number"
+            id="playerNumber"
+            min="1"
+            max="99"
+          >
+
+
+          <!-- Change player team -->
+          <label class="field-label" for="playerTeam">
+            Team
+          </label>
+
+          <select class="select-control" id="playerTeam">
+
+            <option value="home">Home</option>
+            <option value="away">Away</option>
+
+          </select>
+
+
+          <!-- Delete selected player -->
+          <button
+            class="wide-button danger-button"
+            id="deletePlayerBtn">
+
+            Delete player
+
+          </button>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- SIDEBAR FOOTER -->
+      <div class="sidebar-footer">
+
+        TACTCL
+
+      </div>
+
+    </aside>
+
+
+
+    <!-- ===================================================
+         4. MAIN WORKSPACE
+         Contains the pitch and its controls.
+         =================================================== -->
+
+    <section class="workspace">
+
+
+      <!-- Workspace heading and actions -->
+      <div class="workspace-toolbar">
+
+        <div>
+
+          <h1>TACTCL Soccer Board</h1>
+
+        </div>
+
+
+        <!-- Board actions -->
+        <div class="view-actions">
+
+          <button class="btn" id="undoBtn">
+            ↶ Undo
+          </button>
+
+          <button class="btn" id="flipBtn">
+            ⇄ Flip board
+          </button>
+
+          <button class="btn" id="clearBtn">
+            Clear board
+          </button>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- =================================================
+           5. SOCCER PITCH
+           The players, ball, and drawings are placed here.
+           ================================================= -->
+
+      <div class="pitch-stage">
+
+        <!-- Whole green area (grass margin + field + goals). Players can go anywhere in here. -->
+        <div class="pitch" id="pitch">
+
+          <div class="pitch-stripes"></div>
+
+          <!-- Goals sit in the grass margin, just outside the goal lines -->
+          <div class="goal-mouth goal-left"></div>
+          <div class="goal-mouth goal-right"></div>
+
+          <!-- White field markings, inset from the edge to leave a grass margin -->
+          <div class="field-markings">
+
+            <div class="field-line halfway"></div>
+            <div class="center-circle"></div>
+            <div class="center-spot"></div>
+
+            <div class="penalty-area left-area"></div>
+            <div class="penalty-area right-area"></div>
+
+            <div class="six-area left-six"></div>
+            <div class="six-area right-six"></div>
+
+            <div class="penalty-spot left-spot"></div>
+            <div class="penalty-spot right-spot"></div>
+
+            <div class="penalty-arc left-arc"></div>
+            <div class="penalty-arc right-arc"></div>
+
+            <div class="corner corner-tl"></div>
+            <div class="corner corner-tr"></div>
+            <div class="corner corner-bl"></div>
+            <div class="corner corner-br"></div>
+
+          </div>
+
+          <svg class="drawing-layer" id="drawingLayer"
+              viewBox="0 0 1000 640" preserveAspectRatio="none"></svg>
+
+          <div class="players-layer" id="playersLayer"></div>
+
+        </div>
+      </div>
+
+      
+      <!-- =================================================
+          ANIMATION TIMELINE
+          All animation controls stay underneath the pitch.
+          ================================================= -->
+
+      <div class="animation-toolbar" id="animationToolbar" hidden>
+
+        <!-- Frame selection buttons are created by JavaScript -->
+        <div class="frame-list" id="frameList"></div>
+
+        <!-- Animation actions -->
+        <div class="animation-actions">
+
+          <button class="btn btn-primary" id="addFrameBtn">
+            + Add Frame
+          </button>
+
+          <button class="btn" id="deleteFrameBtn">
+            Delete Frame
+          </button>
+
+          <button class="btn" id="playNextFrameBtn">
+            ▶ Play Next Frame
+          </button>
+
+          <button class="btn btn-primary" id="playFullAnimationBtn">
+            ▶ Play Full Animation
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           6. WORKSPACE FOOTER
+           Displays instructions and the ball legend.
+           ================================================= -->
+
+      <div class="workspace-footer">
+
+        <span id="boardHint">
+          Drag players and the ball to reposition them.
+        </span>
+
+
+        <span>
+
+          <span class="legend-dot home-dot"></span>
+          Home
+
+          <span class="legend-dot away-dot"></span>
+          Away
+
+        </span>
+
+      </div>
+
+
+    </section>
+
+  </main>
+
+
+
+  <!-- =====================================================
+       7. NOTIFICATION MESSAGE
+       JavaScript uses this for save and update messages.
+       ===================================================== -->
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Library used to turn the tactics board into an image -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+  <!-- =====================================================
+       8. JAVASCRIPT
+       Load this after the HTML so all elements are available.
+       ===================================================== -->
+
+  <script src="scripts.js"></script>
+
+</body>
+</html>
