@@ -222,6 +222,12 @@
             Groups
           </button>
 
+          <!-- Create tactical zones on the pitch -->
+          <button class="tool-button" data-tool="zones">
+            <span>▧</span>
+            Zones
+          </button>
+
         </div>
 
         <!-- GROUP SETTINGS -->
@@ -268,6 +274,43 @@
 
           <!-- Existing groups will appear here -->
           <div id="groupsList"></div>
+
+        </div>
+                <!-- ZONE SETTINGS -->
+        <div class="group-panel" id="zonePanel" hidden>
+
+          <h3>TACTICAL ZONES</h3>
+
+          <p id="zoneInstructions">
+            Drag on the pitch to create a tactical zone.
+          </p>
+
+          <!-- Choose the zone color -->
+          <label class="field-label" for="zoneColor">
+            Zone color
+          </label>
+
+          <input
+            type="color"
+            id="zoneColor"
+            value="#e4b84c"
+          >
+
+          <!-- Confirm or cancel the current zone -->
+          <div id="zoneConfirmControls" hidden>
+
+            <button class="wide-button" id="confirmZoneButton" type="button">
+              Confirm zone
+            </button>
+
+            <button class="wide-button danger-button" id="cancelZoneButton" type="button">
+              Cancel zone
+            </button>
+
+          </div>
+
+          <!-- Existing zones -->
+          <div id="zonesList" class="groups-list"></div>
 
         </div>
 

@@ -106,6 +106,8 @@ let state = {
 
   groups: [],
 
+  zones: [],
+
   groupSelection: [],
 
   selectedId: null,
@@ -128,6 +130,10 @@ let undoStack = [];
 let drag = null;
 
 let drawStart = null;
+
+let zoneStart = null;
+
+let pendingZone = null;
 
 let currentPath = null;
 
@@ -203,7 +209,7 @@ function captureFrame() {
 
     groups: deepCopy(state.groups),
 
-    zones: []
+    zones: deepCopy(state.zones)
 
   };
 
@@ -234,9 +240,7 @@ function saveActiveFrame() {
 
   frame.groups = deepCopy(state.groups);
 
-  if (!Array.isArray(frame.zones)) {
-    frame.zones = [];
-  }
+  frame.zones = deepCopy(state.zones);
 
 }
 
@@ -283,6 +287,9 @@ function applyAnimationFrame(frameIndex) {
 
   // Load only the groups belonging to this frame.
   state.groups = deepCopy(frame.groups || []);
+
+  // Load only the zones belonging to this frame.
+  state.zones = deepCopy(frame.zones || []);
 
   state.animation.activeFrame = frameIndex;
 
@@ -845,6 +852,8 @@ function snapshot() {
 
     groups: state.groups,
 
+    zones: deepCopy(state.zones),
+
     animation: state.animation
 
   }));
@@ -994,7 +1003,7 @@ function render() {
   updateEditor();
 
   updateGroupsPanel();
-
+  updateZonesPanel();
   updateGroupInstructions();
 
 
@@ -1240,6 +1249,8 @@ function onBallPointerDown(event) {
 }
 
 
+
+
 /* =========================================================
    15. HANDLE MOVEMENT
    ========================================================= */
@@ -1247,6 +1258,17 @@ function onBallPointerDown(event) {
 pitch.addEventListener('pointermove', event => {
 
   if (isAnimating) return;
+
+  // Preview a tactical zone while dragging.
+  if (zoneStart) {
+
+    zoneStart.end = coordsFromEvent(event);
+
+    renderDrawings();
+
+    return;
+
+  }
 
   if (drag) {
 
@@ -1350,6 +1372,23 @@ pitch.addEventListener('pointerdown', event => {
 
   // Do nothing when the Group tool is active.
   if (state.tool === 'group') {
+
+    return;
+
+  }
+
+  // Start creating a tactical zone.
+  if (state.tool === 'zones') {
+
+    snapshot();
+
+    zoneStart = {
+      x: point.x,
+      y: point.y,
+      end: point
+    };
+
+    pitch.setPointerCapture(event.pointerId);
 
     return;
 
@@ -1485,31 +1524,49 @@ pitch.addEventListener('pointerdown', event => {
 
 pitch.addEventListener('pointerup', event => {
 
-  if (isAnimating || !drawStart) return;
+  if (isAnimating) return;
 
-  const point = coordsFromEvent(event);
+  // Finish drawing a tactical zone, but wait for confirmation.
+  if (zoneStart) {
+    const end = coordsFromEvent(event);
+    const x = Math.min(zoneStart.x, end.x);
+    const y = Math.min(zoneStart.y, end.y);
+    const width = Math.abs(end.x - zoneStart.x);
+    const height = Math.abs(end.y - zoneStart.y);
 
-  snapshot();
+    if (width >= 1 && height >= 1) {
+      pendingZone = {
+        x,
+        y,
+        width,
+        height,
+        color: document.getElementById('zoneColor').value
+      };
+
+      document.getElementById('zoneConfirmControls').hidden = false;
+    }
+
+    zoneStart = null;
+    render();
+    return;
+  }
+
+  // Finish drawing an arrow or line.
+  if (!drawStart) return;
+
+  const end = coordsFromEvent(event);
 
   state.drawings.push({
-
     type: drawStart.type,
-
     x1: drawStart.x,
-
     y1: drawStart.y,
-
-    x2: point.x * 10,
-
-    y2: point.y * 6.4,
-
+    x2: end.x * 10,
+    y2: end.y * 6.4,
     color: '#fff'
-
   });
 
   drawStart = null;
-
-  renderDrawings();
+  render();
 
 });
 
@@ -1610,6 +1667,67 @@ function renderDrawings() {
   drawingLayer.innerHTML = '';
 
   const svgNamespace = 'http://www.w3.org/2000/svg';
+
+    // Draw saved tactical zones.
+  [...state.zones, ...(pendingZone ? [pendingZone] : [])].forEach(zone => {
+
+    const rectangle = document.createElementNS(
+      svgNamespace,
+      'rect'
+    );
+
+    rectangle.setAttribute('x', zone.x * 10);
+    rectangle.setAttribute('y', zone.y * 6.4);
+    rectangle.setAttribute('width', zone.width * 10);
+    rectangle.setAttribute('height', zone.height * 6.4);
+
+    rectangle.setAttribute('fill', zone.color || '#e4b84c');
+    rectangle.setAttribute('fill-opacity', '0.20');
+
+    rectangle.setAttribute('stroke', zone.color || '#e4b84c');
+    rectangle.setAttribute('stroke-width', '2');
+    rectangle.setAttribute(
+    'stroke-dasharray',
+    zone === pendingZone ? '7 4' : 'none'
+    );
+
+    drawingLayer.appendChild(rectangle);
+
+  });
+
+
+  // Draw the temporary zone while dragging.
+  if (zoneStart && zoneStart.end) {
+
+    const x = Math.min(zoneStart.x, zoneStart.end.x);
+    const y = Math.min(zoneStart.y, zoneStart.end.y);
+
+    const width = Math.abs(zoneStart.end.x - zoneStart.x);
+    const height = Math.abs(zoneStart.end.y - zoneStart.y);
+
+    const preview = document.createElementNS(
+      svgNamespace,
+      'rect'
+    );
+
+    preview.setAttribute('x', x * 10);
+    preview.setAttribute('y', y * 6.4);
+    preview.setAttribute('width', width * 10);
+    preview.setAttribute('height', height * 6.4);
+
+
+    const selectedZoneColor =
+      document.getElementById('zoneColor').value || '#e4b84c';
+    preview.setAttribute('fill', selectedZoneColor);
+    preview.setAttribute('fill-opacity', '0.20');
+
+    preview.setAttribute('stroke', selectedZoneColor);
+    preview.setAttribute('stroke-width', '2');
+    preview.setAttribute('stroke-dasharray', '7 4');
+
+    drawingLayer.appendChild(preview);
+
+  }
 
 
   // Draw completed player groups first.
@@ -1882,6 +2000,67 @@ function updateGroupsPanel() {
 
 }
 
+// Displays all created zones in the sidebar.
+function updateZonesPanel() {
+
+  const list = document.getElementById('zonesList');
+
+  if (!list) return;
+
+  list.innerHTML = '';
+
+  if (state.zones.length === 0) {
+    const message = document.createElement('p');
+    message.textContent = 'No zones created yet.';
+    list.appendChild(message);
+    return;
+  }
+
+  state.zones.forEach((zone, index) => {
+
+    const item = document.createElement('div');
+    item.className = 'group-list-item';
+
+    // Zone name and color indicator.
+    const name = document.createElement('div');
+    name.className = 'group-list-name';
+
+    const color = document.createElement('span');
+    color.className = 'group-color-dot';
+    color.style.background = zone.color || '#e4b84c';
+
+    const label = document.createElement('span');
+    label.textContent = `Zone ${index + 1}`;
+
+    name.append(color, label);
+
+    // Delete button.
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'group-delete-button';
+    deleteButton.textContent = 'Delete';
+    deleteButton.type = 'button';
+
+    deleteButton.addEventListener('click', () => {
+
+      snapshot();
+
+      state.zones = state.zones.filter(
+        z => z.id !== zone.id
+      );
+
+      render();
+
+      showToast('Zone deleted');
+
+    });
+
+    item.append(name, deleteButton);
+    list.appendChild(item);
+
+  });
+
+}
+
 
 // Remove a player from every group when that player is deleted.
 
@@ -2034,6 +2213,14 @@ document.querySelectorAll('.tool-button').forEach(button => {
 
     state.tool = button.dataset.tool;
 
+    // Keep pending zones when switching tools, but hide their controls
+    // unless the Zones tool is selected.
+    const zoneControls = document.getElementById('zoneConfirmControls');
+
+    if (zoneControls) {
+      zoneControls.hidden = !pendingZone || state.tool !== 'zones';
+    }
+
 
     // Clear temporary selection when leaving Groups.
     if (state.tool !== 'group') {
@@ -2044,11 +2231,21 @@ document.querySelectorAll('.tool-button').forEach(button => {
 
 
     // Show or hide the Groups panel.
+    // Show or hide the Groups panel.
     const groupPanel = document.getElementById('groupPanel');
 
     if (groupPanel) {
 
       groupPanel.hidden = state.tool !== 'group';
+
+    }
+
+    // Show or hide the Zones panel.
+    const zonePanel = document.getElementById('zonePanel');
+
+    if (zonePanel) {
+
+      zonePanel.hidden = state.tool !== 'zones';
 
     }
 
@@ -2081,7 +2278,9 @@ document.querySelectorAll('.tool-button').forEach(button => {
 
       eraser: 'Click a player, ball, or pitch drawing to remove it.',
 
-      group: 'Click three or more players to create a tactical group.'
+      group: 'Click three or more players to create a tactical group.',
+
+      zones: 'Click and drag on the pitch to create a tactical zone.'
 
     };
 
@@ -2381,6 +2580,8 @@ function undo() {
 
   state.groups = previous.groups || [];
 
+  state.zones = deepCopy(previousState.zones || []);
+
   state.animation = previous.animation || null;
 
   state.groupSelection = [];
@@ -2422,6 +2623,13 @@ document.getElementById('clearBtn').addEventListener(
     state.drawings = [];
 
     state.groups = [];
+
+    state.zones = [];
+
+    pendingZone = null;
+    zoneStart = null;
+
+    document.getElementById('zoneConfirmControls').hidden = true;
 
     state.groupSelection = [];
 
@@ -2980,3 +3188,32 @@ document.getElementById('exportBtn').addEventListener(
 initialize();
 
 loadSaved();
+
+// CONFIRM TACTICAL ZONE
+document.getElementById('confirmZoneButton').addEventListener('click', () => {
+  if (!pendingZone) return;
+
+  snapshot();
+
+  state.zones.push({
+    ...pendingZone,
+    id: `zone-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`
+  });
+
+  pendingZone = null;
+
+  document.getElementById('zoneConfirmControls').hidden = true;
+
+  render();
+  showToast('Zone created');
+});
+
+
+// CANCEL TACTICAL ZONE
+document.getElementById('cancelZoneButton').addEventListener('click', () => {
+  pendingZone = null;
+
+  document.getElementById('zoneConfirmControls').hidden = true;
+
+  render();
+});
