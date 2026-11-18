@@ -168,22 +168,42 @@ function deepCopy(value) {
 
 
 // Capture the current board positions.
+/*
+   Each frame stores:
+   - Player positions
+   - Ball position
+   - Drawings (arrows, lines, freehand)
+   - Player groups
+   - Tactical zones
+
+   Frame structure:
+
+   {
+      positions: [],
+      ball: {},
+      drawings: [],
+      groups: [],
+      zones: []
+   }
+*/
 
 function captureFrame() {
 
   return {
 
     positions: state.players.map(player => ({
-
       id: player.id,
-
       x: player.x,
-
       y: player.y
-
     })),
 
-    ball: deepCopy(state.ball)
+    ball: deepCopy(state.ball),
+
+    drawings: deepCopy(state.drawings),
+
+    groups: deepCopy(state.groups),
+
+    zones: []
 
   };
 
@@ -203,16 +223,20 @@ function saveActiveFrame() {
   if (!frame) return;
 
   frame.positions = state.players.map(player => ({
-
     id: player.id,
-
     x: player.x,
-
     y: player.y
-
   }));
 
   frame.ball = deepCopy(state.ball);
+
+  frame.drawings = deepCopy(state.drawings);
+
+  frame.groups = deepCopy(state.groups);
+
+  if (!Array.isArray(frame.zones)) {
+    frame.zones = [];
+  }
 
 }
 
@@ -253,6 +277,12 @@ function applyAnimationFrame(frameIndex) {
     state.ball = deepCopy(frame.ball);
 
   }
+
+  // Load only the drawings belonging to this frame.
+  state.drawings = deepCopy(frame.drawings || []);
+
+  // Load only the groups belonging to this frame.
+  state.groups = deepCopy(frame.groups || []);
 
   state.animation.activeFrame = frameIndex;
 
@@ -1857,6 +1887,7 @@ function updateGroupsPanel() {
 
 function removePlayerFromGroups(playerId) {
 
+  // Update the currently active groups.
   state.groups.forEach(group => {
 
     group.playerIds = group.playerIds.filter(
@@ -1864,6 +1895,23 @@ function removePlayerFromGroups(playerId) {
     );
 
   });
+
+  // Update groups stored in every animation frame.
+  if (state.animation) {
+
+    state.animation.frames.forEach(frame => {
+
+      (frame.groups || []).forEach(group => {
+
+        group.playerIds = group.playerIds.filter(
+          id => id !== playerId
+        );
+
+      });
+
+    });
+
+  }
 
   state.groupSelection = state.groupSelection.filter(
     id => id !== playerId
@@ -2543,6 +2591,24 @@ function loadSaved() {
 
       state.animation = saved.animation;
 
+      // Migrate older saved frames that do not have
+      // their own drawings and groups.
+      state.animation.frames.forEach(frame => {
+
+        if (!Array.isArray(frame.drawings)) {
+          frame.drawings = deepCopy(saved.drawings || []);
+        }
+
+        if (!Array.isArray(frame.groups)) {
+          frame.groups = deepCopy(saved.groups || []);
+        }
+
+        if (!Array.isArray(frame.zones)) {
+          frame.zones = [];
+        }
+
+      });
+
       state.animation.activeFrame = Math.max(
         0,
         Math.min(
@@ -2623,7 +2689,7 @@ async function exportAnimatedGif(board) {
 
   const canvasOptions = {
 
-    scale: 1.5,
+    scale: 1,
 
     backgroundColor: null,
 
