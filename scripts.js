@@ -2617,7 +2617,7 @@ async function exportAnimatedGif(board) {
     quality: 10,
 
     workerScript:
-      'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+      './gif.worker.js'
 
   });
 
