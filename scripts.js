@@ -15,6 +15,94 @@
    - Creating and playing two-frame animations
    ========================================================= */
 
+// Rebuild the grass stripes as real elements so html2canvas can draw them.
+const STRIPE_ALPHA = 0.03;   // matches your CSS (#ffffff08). Try 0.05 for bolder stripes.
+
+function fixGrassStripes(clonedDocument) {
+
+  const pitchElement = clonedDocument.querySelector('.pitch');
+
+  if (!pitchElement) return;
+
+  let stripes = clonedDocument.querySelector('.pitch-stripes');
+
+  if (!stripes) {
+    stripes = clonedDocument.createElement('div');
+    stripes.className = 'pitch-stripes';
+    pitchElement.insertBefore(stripes, pitchElement.firstChild);
+  }
+
+  stripes.style.background = 'none';
+  stripes.style.position = 'absolute';
+  stripes.style.inset = '0';
+  stripes.innerHTML = '';
+
+  // 10 alternating columns: lighter, normal, lighter, normal...
+  for (let i = 0; i < 5; i++) {
+
+    const band = clonedDocument.createElement('div');
+
+    band.style.position = 'absolute';
+    band.style.top = '0';
+    band.style.bottom = '0';
+    band.style.left = `${i * 20}%`;
+    band.style.width = '10%';
+    band.style.background = `rgba(255,255,255,${STRIPE_ALPHA})`;
+
+    stripes.appendChild(band);
+
+  }
+
+}
+
+// html2canvas ignores clip-path, so rebuild each penalty arc as a
+// half-width wrapper with overflow:hidden (which it does support).
+function fixPenaltyArcs(clonedDocument) {
+
+  clonedDocument.querySelectorAll('.penalty-arc').forEach(arc => {
+
+    const isLeft = arc.classList.contains('left-arc');
+
+    const wrapper = clonedDocument.createElement('div');
+
+    wrapper.style.position = 'absolute';
+    wrapper.style.top = '40%';
+    wrapper.style.width = '4%';          // half of the arc's 8% width
+    wrapper.style.height = '20%';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.zIndex = '1';
+    wrapper.style.pointerEvents = 'none';
+
+    // Left arc keeps its right half (x: 16%–20%).
+    // Right arc keeps its left half (x: 80%–84%).
+    if (isLeft) {
+      wrapper.style.left = '16%';
+    } else {
+      wrapper.style.left = '80%';
+    }
+
+    arc.parentNode.insertBefore(wrapper, arc);
+    wrapper.appendChild(arc);
+
+    // Full ellipse inside the wrapper, shifted so only the outer half shows.
+    arc.style.clipPath = 'none';
+    arc.style.position = 'absolute';
+    arc.style.top = '0';
+    arc.style.right = 'auto';
+    arc.style.width = '200%';
+    arc.style.height = '100%';
+    arc.style.left = isLeft ? '-100%' : '0';
+
+  });
+
+}
+
+// One function for every export-only fix.
+function prepareCloneForExport(clonedDocument) {
+  fixGrassStripes(clonedDocument);
+  fixPenaltyArcs(clonedDocument);
+}
+
 
 /* =========================================================
    1. CONNECT JAVASCRIPT TO THE HTML
@@ -33,7 +121,7 @@ const deleteFrameBtn = document.getElementById('deleteFrameBtn');
 const playNextFrameBtn = document.getElementById('playNextFrameBtn');
 const playFullAnimationBtn = document.getElementById('playFullAnimationBtn');
 
-const MAX_ANIMATION_FRAMES = 5;
+const MAX_ANIMATION_FRAMES = 10;
 const FRAME_ANIMATION_DURATION = 1000;
 
 
@@ -2868,6 +2956,218 @@ function loadSaved() {
 }
 
 
+async function exportAnimatedVideo(board) {
+
+  if (typeof VideoEncoder === 'undefined' || typeof Mp4Muxer === 'undefined') {
+    showToast('Video export needs a recent Chrome/Edge and the mp4-muxer script');
+    return;
+  }
+
+  const FPS = 30;
+  const CAPTURE_SCALE = 2;
+  const STEPS = Math.round((FRAME_ANIMATION_DURATION / 1000) * FPS);
+  const HOLD_START_MS = 700;
+  const HOLD_END_MS = 1000;
+  const BITRATE = 30000000;          // 30 Mbps keeps thin lines and borders crisp
+  const PITCH_GREEN = '#2d8054';
+
+  const frames = state.animation.frames;
+  const originalFrame = state.animation.activeFrame;
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  const captureOptions = {
+    scale: CAPTURE_SCALE,
+    backgroundColor: PITCH_GREEN,
+    useCORS: true,
+    logging: false,
+    onclone: prepareCloneForExport          // draws the two-tone grass
+  };
+
+  let width = 0;
+  let height = 0;
+
+  async function grab() {
+    const canvas = await html2canvas(board, captureOptions);
+    width = canvas.width - (canvas.width % 2);
+    height = canvas.height - (canvas.height % 2);
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  function showInterpolated(fromIndex, toIndex, t) {
+
+    const fromMap = new Map(frames[fromIndex].positions.map(p => [p.id, p]));
+    const toMap = new Map(frames[toIndex].positions.map(p => [p.id, p]));
+
+    state.players.forEach(player => {
+      const a = fromMap.get(player.id);
+      const b = toMap.get(player.id);
+      if (!a || !b) return;
+
+      player.x = a.x + (b.x - a.x) * t;
+      player.y = a.y + (b.y - a.y) * t;
+
+      const el = playersLayer.querySelector(`[data-id="${CSS.escape(player.id)}"]`);
+      if (el) {
+        el.style.left = `${player.x}%`;
+        el.style.top = `${player.y}%`;
+      }
+    });
+
+    const fb = frames[fromIndex].ball;
+    const tb = frames[toIndex].ball;
+
+    state.ball = {
+      x: fb.x + (tb.x - fb.x) * t,
+      y: fb.y + (tb.y - fb.y) * t
+    };
+
+    const ballEl = playersLayer.querySelector('.ball');
+    if (ballEl) {
+      ballEl.style.left = `${state.ball.x}%`;
+      ballEl.style.top = `${state.ball.y}%`;
+    }
+
+    renderDrawings();
+  }
+
+  try {
+
+    isAnimating = true;
+    updateAnimationControls();
+
+    // ---------- PASS 1: render every step ----------
+    applyAnimationFrame(0);
+    render();
+
+    const shots = [];
+    shots.push({ blob: await grab(), repeat: Math.round(HOLD_START_MS / 1000 * FPS) });
+
+    for (let index = 1; index < frames.length; index++) {
+
+      applyAnimationFrame(index - 1);
+      renderDrawings();
+
+      for (let step = 1; step <= STEPS; step++) {
+
+        showInterpolated(index - 1, index, ease(step / STEPS));
+
+        if (step === STEPS) {
+          applyAnimationFrame(index);
+          renderDrawings();
+        }
+
+        shots.push({ blob: await grab(), repeat: 1 });
+        showToast(`Rendering ${index}/${frames.length - 1}: ${step}/${STEPS}`);
+      }
+    }
+
+    shots[shots.length - 1].repeat = Math.round(HOLD_END_MS / 1000 * FPS);
+
+    // ---------- PASS 2: encode H.264 ----------
+    showToast('Encoding video...');
+
+    const muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      video: { codec: 'avc', width, height },
+      fastStart: 'in-memory'
+    });
+
+    const encoderConfig = {
+      codec: 'avc1.640033',          // H.264 High profile, level 5.1
+      width,
+      height,
+      bitrate: BITRATE,
+      framerate: FPS,
+      latencyMode: 'quality',
+      avc: { format: 'avc' }
+    };
+
+    const support = await VideoEncoder.isConfigSupported(encoderConfig);
+    if (!support.supported) {
+      throw new Error('This browser cannot encode H.264 at this size');
+    }
+
+    let encoderError = null;
+
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: e => { encoderError = e; }
+    });
+
+    encoder.configure(encoderConfig);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    let frameNumber = 0;
+    const frameDuration = 1000000 / FPS;
+
+    for (const shot of shots) {
+
+      const bitmap = await createImageBitmap(shot.blob);
+      ctx.fillStyle = PITCH_GREEN;
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+
+      for (let r = 0; r < shot.repeat; r++) {
+
+        const videoFrame = new VideoFrame(canvas, {
+          timestamp: Math.round(frameNumber * frameDuration),
+          duration: Math.round(frameDuration)
+        });
+
+        encoder.encode(videoFrame, { keyFrame: frameNumber % FPS === 0 });
+        videoFrame.close();
+        frameNumber++;
+
+        if (encoder.encodeQueueSize > 10) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+    }
+
+    await encoder.flush();
+    encoder.close();
+
+    if (encoderError) throw encoderError;
+
+    muxer.finalize();
+
+    // ---------- Download ----------
+    const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    const safeName = state.boardName
+      .replace(/[^a-z0-9]/gi, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    link.download = `${safeName || 'TACTCL-Board'}.mp4`;
+    link.href = url;
+    link.click();
+
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    showToast('Video exported successfully!');
+
+  } catch (error) {
+
+    console.error('Video export error:', error);
+    showToast(`Video export failed: ${error.message}`);
+
+  } finally {
+
+    isAnimating = false;
+    applyAnimationFrame(originalFrame);
+    render();
+  }
+}
+
+
 /* =========================================================
    ANIMATED GIF EXPORT
    ========================================================= */
@@ -2903,7 +3203,9 @@ async function exportAnimatedGif(board) {
 
     useCORS: true,
 
-    logging: false
+    logging: false,
+
+    onclone: prepareCloneForExport
 
   };
 
@@ -3112,23 +3414,27 @@ document.getElementById('exportBtn').addEventListener(
     saveActiveFrame();
 
     // Offer animated export when multiple frames exist.
-    if (
-      state.animation &&
-      state.animation.frames.length > 1
-    ) {
+    if (state.animation && state.animation.frames.length > 1) {
 
-      const exportGif = window.confirm(
-        'Export full animation as a GIF?\n\n' +
-        'OK = Animated GIF\n' +
-        'Cancel = Static PNG'
+      const exportChoice = window.prompt(
+        'Choose export format:\n\n1 = Animated GIF\n2 = Video (MP4)\n3 = Static PNG'
       );
 
-      if (exportGif) {
-
+      if (exportChoice === '1') {
         await exportAnimatedGif(board);
-
         return;
+      }
 
+      if (exportChoice === '2') {
+        await exportAnimatedVideo(board);
+        return;
+      }
+
+      if (exportChoice === null || exportChoice === '3') {
+        // Continue to the existing static PNG export below.
+      } else {
+        showToast('Invalid export selection');
+        return;
       }
 
     }
@@ -3146,7 +3452,9 @@ document.getElementById('exportBtn').addEventListener(
 
         useCORS: true,
 
-        logging: false
+        logging: false,
+
+        onclone: prepareCloneForExport
 
       });
 
