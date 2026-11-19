@@ -53,17 +53,14 @@
     <!-- Main actions -->
     <div class="top-actions">
 
-      <button class="btn btn-quiet" id="renameBtn">
-        Rename
-      </button>
+      <button class="btn btn-quiet" id="renameBtn">Rename</button>
 
-      <button class="btn btn-quiet" id="exportBtn">
-        Export
-      </button>
+      <button class="btn btn-quiet" id="exportBtn">Export</button>
 
-      <button class="btn btn-primary" id="saveBtn">
-        Save tactic
-      </button>
+      <button class="btn btn-quiet" id="importBtn">Import</button>
+      <button class="btn btn-quiet" id="saveAsBtn">Save As</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <button class="btn btn-primary" id="saveBtn">Save tactic</button>
 
     </div>
 
@@ -227,6 +224,50 @@
             <span>▧</span>
             Zones
           </button>
+
+        </div>
+
+        <!-- DIAGRAM STANDARDS TOGGLE -->
+        <label class="switch-row" for="standardsToggle">
+          <span>Diagram standards</span>
+          <span class="switch">
+            <input type="checkbox" id="standardsToggle">
+            <span class="switch-slider"></span>
+          </span>
+        </label>
+
+        <!-- ARROW TYPES (shown only when the toggle is on) -->
+        <div class="group-panel" id="standardsPanel" hidden>
+
+          <h3>ARROW TYPE</h3>
+
+          <div class="style-grid">
+
+            <button class="style-button active" data-style="pass" type="button">
+              <svg viewBox="0 0 60 12" width="52" height="12">
+                <line x1="2" y1="6" x2="50" y2="6" stroke="currentColor" stroke-width="2.5"/>
+                <path d="M45,1 L56,6 L45,11" fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <div>Pass<small>Solid arrow</small></div>
+            </button>
+
+            <button class="style-button" data-style="run" type="button">
+              <svg viewBox="0 0 60 12" width="52" height="12">
+                <line x1="2" y1="6" x2="50" y2="6" stroke="currentColor" stroke-width="2.5" stroke-dasharray="7 5"/>
+                <path d="M45,1 L56,6 L45,11" fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <div>Run<small>Player movement, dashed</small></div>
+            </button>
+
+            <button class="style-button" data-style="dribble" type="button">
+              <svg viewBox="0 0 60 12" width="52" height="12">
+                <path d="M2 6 Q5 0 8 6 T14 6 T20 6 T26 6 T32 6 T38 6 T44 6" fill="none" stroke="currentColor" stroke-width="2.2"/>
+                <path d="M45,1 L56,6 L45,11" fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <div>Dribble<small>Player with the ball, squiggly</small></div>
+            </button>
+
+          </div>
 
         </div>
 

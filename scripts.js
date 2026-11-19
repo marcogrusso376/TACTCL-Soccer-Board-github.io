@@ -206,6 +206,10 @@ let state = {
 
   flipped: false,
 
+  standardsMode: false,
+  
+  arrowStyle: 'pass',
+
   boardName: 'Untitled tactic',
 
   // Stores the two animation frames.
@@ -715,12 +719,15 @@ function animateToFrame(targetIndex) {
       ])
     );
 
+    startAnimationTrail();
+
+    animationTargetIndex = targetIndex;
 
     const startBall = deepCopy(state.ball);
 
     const endBall = deepCopy(targetFrame.ball);
 
-    const startTime = performance.now();
+    let startTime = performance.now();
 
 
     function easeInOutCubic(t) {
@@ -825,7 +832,41 @@ function animateToFrame(targetIndex) {
     }
 
 
-    requestAnimationFrame(animate);
+    // Does anyone actually move in this step?
+    const hasMovement =
+      state.players.some(player => {
+
+        const end = targetPositionMap.get(player.id);
+
+        return end && Math.hypot(
+          end.x - player.x,
+          end.y - player.y
+        ) >= MOVEMENT_THRESHOLD;
+
+      }) ||
+      Math.hypot(
+        endBall.x - state.ball.x,
+        endBall.y - state.ball.y
+      ) >= MOVEMENT_THRESHOLD;
+
+    if (SHOW_MOVEMENT_LINES && PREVIEW_HOLD_MS > 0 && hasMovement) {
+
+      // Show the planned paths first, then start moving.
+      renderDrawings();
+
+      setTimeout(() => {
+
+        startTime = performance.now();
+
+        requestAnimationFrame(animate);
+
+      }, PREVIEW_HOLD_MS);
+
+    } else {
+
+      requestAnimationFrame(animate);
+
+    }
 
   });
 
@@ -1037,6 +1078,13 @@ function initialize() {
    ========================================================= */
 
 function render() {
+
+  // Trails only exist while an animation is playing.
+  if (!isAnimating) {
+    animationTrail = null;
+    animationTargetIndex = null;
+    animationBallStart = null;
+  }
 
   // Keep the active frame synchronized with the board.
   saveActiveFrame();
@@ -1411,6 +1459,8 @@ pitch.addEventListener('pointermove', event => {
 
       }
 
+      renderDrawings();
+
     }
 
     return;
@@ -1646,6 +1696,10 @@ pitch.addEventListener('pointerup', event => {
 
   state.drawings.push({
     type: drawStart.type,
+    // Only arrows get a style, and only while the toggle is on.
+    style: (state.standardsMode && drawStart.type === 'arrow')
+      ? state.arrowStyle
+      : null,
     x1: drawStart.x,
     y1: drawStart.y,
     x2: end.x * 10,
@@ -1744,7 +1798,222 @@ function getPolygonPoints(players) {
 
 }
 
+/* =========================================================
+   18b. AUTOMATIC MOVEMENT LINES
+   - Edit mode: dashed arrow to where each player goes next frame
+   - Playback: dashed trail behind each moving player
+   ========================================================= */
 
+const SHOW_MOVEMENT_LINES = true;   // set to false to turn the feature off
+const MOVEMENT_THRESHOLD = 1;       // ignore moves smaller than this (% of pitch)
+const PREVIEW_HOLD_MS = 900;        // pause showing planned paths before players move (0 = no pause)
+
+// Where every player started the current animation move.
+let animationTrail = null;
+
+// Which frame the board is currently animating toward.
+let animationTargetIndex = null;
+
+// Where the ball started the current animation move.
+let animationBallStart = null;
+
+function startAnimationTrail() {
+
+  animationTrail = new Map(
+    state.players.map(player => [
+      player.id,
+      { x: player.x, y: player.y }
+    ])
+  );
+
+  animationBallStart = deepCopy(state.ball);
+
+}
+
+function drawMovementLines(svgNamespace) {
+
+  if (!SHOW_MOVEMENT_LINES || !state.animation) return;
+
+  const lines = [];
+
+  if (isAnimating) {
+
+    // PLAYBACK: planned path (faint, with arrowhead) plus the trail behind the player.
+    if (!animationTrail) return;
+
+    const targetFrame = state.animation.frames[animationTargetIndex];
+
+    const targetPositions = targetFrame
+      ? new Map(targetFrame.positions.map(position => [position.id, position]))
+      : null;
+
+    state.players.forEach(player => {
+
+      const start = animationTrail.get(player.id);
+
+      if (!start) return;
+
+      // Planned path: start to destination, visible before the player moves.
+      if (targetPositions) {
+
+        const target = targetPositions.get(player.id);
+
+        if (
+          target &&
+          Math.hypot(target.x - start.x, target.y - start.y) >= MOVEMENT_THRESHOLD
+        ) {
+
+          lines.push({
+            x1: start.x * 10,
+            y1: start.y * 6.4,
+            x2: target.x * 10,
+            y2: target.y * 6.4,
+            arrow: true,
+            opacity: 0.45
+          });
+
+        }
+
+      }
+
+      // Trail: start to the player's current position.
+      if (Math.hypot(player.x - start.x, player.y - start.y) >= MOVEMENT_THRESHOLD) {
+
+        lines.push({
+          x1: start.x * 10,
+          y1: start.y * 6.4,
+          x2: player.x * 10,
+          y2: player.y * 6.4,
+          arrow: false,
+          opacity: 0.9
+        });
+
+      }
+
+    });
+
+        // Ball: planned pass path, plus the line behind the moving ball.
+    if (animationBallStart) {
+
+      const ballTarget = targetFrame ? targetFrame.ball : null;
+
+      if (
+        ballTarget &&
+        Math.hypot(
+          ballTarget.x - animationBallStart.x,
+          ballTarget.y - animationBallStart.y
+        ) >= MOVEMENT_THRESHOLD
+      ) {
+
+        lines.push({
+          x1: animationBallStart.x * 10,
+          y1: animationBallStart.y * 6.4,
+          x2: ballTarget.x * 10,
+          y2: ballTarget.y * 6.4,
+          arrow: true,
+          opacity: 0.45,
+          solid: true
+        });
+
+      }
+
+      if (
+        Math.hypot(
+          state.ball.x - animationBallStart.x,
+          state.ball.y - animationBallStart.y
+        ) >= MOVEMENT_THRESHOLD
+      ) {
+
+        lines.push({
+          x1: animationBallStart.x * 10,
+          y1: animationBallStart.y * 6.4,
+          x2: state.ball.x * 10,
+          y2: state.ball.y * 6.4,
+          arrow: false,
+          opacity: 0.9,
+          solid: true
+        });
+
+      }
+
+    }
+
+  } else {
+
+    // EDIT MODE: line from each player to their position in the next frame.
+    const nextFrame = state.animation.frames[state.animation.activeFrame + 1];
+
+    if (!nextFrame) return;
+
+    const nextPositions = new Map(
+      nextFrame.positions.map(position => [position.id, position])
+    );
+
+    state.players.forEach(player => {
+
+      const target = nextPositions.get(player.id);
+
+      if (!target) return;
+
+      if (Math.hypot(target.x - player.x, target.y - player.y) < MOVEMENT_THRESHOLD) return;
+
+      lines.push({
+        x1: player.x * 10,
+        y1: player.y * 6.4,
+        x2: target.x * 10,
+        y2: target.y * 6.4,
+        arrow: true,
+        opacity: 0.85
+      });
+
+    });
+
+    // Ball: arrow to where it goes in the next frame.
+    if (
+      nextFrame.ball &&
+      Math.hypot(
+        nextFrame.ball.x - state.ball.x,
+        nextFrame.ball.y - state.ball.y
+      ) >= MOVEMENT_THRESHOLD
+    ) {
+
+      lines.push({
+        x1: state.ball.x * 10,
+        y1: state.ball.y * 6.4,
+        x2: nextFrame.ball.x * 10,
+        y2: nextFrame.ball.y * 6.4,
+        arrow: true,
+        opacity: 0.85,
+        solid: true
+      });
+
+    }
+
+  }
+
+  lines.forEach(item => {
+
+    const line = document.createElementNS(svgNamespace, 'line');
+
+    line.setAttribute('x1', item.x1);
+    line.setAttribute('y1', item.y1);
+    line.setAttribute('x2', item.x2);
+    line.setAttribute('y2', item.y2);
+    line.setAttribute('stroke', '#fff');
+    line.setAttribute('stroke-width', '3');
+    if (!item.solid) {line.setAttribute('stroke-dasharray', '10 7');}
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('opacity', item.opacity);
+
+    if (item.arrow) {
+      line.setAttribute('marker-end', 'url(#arrowhead)');
+    }
+
+    drawingLayer.appendChild(line);
+
+  });
+
+}
 
 /* =========================================================
    19. DRAWING RENDERER AND GROUP POLYGONS
@@ -1887,19 +2156,17 @@ function renderDrawings() {
 
   }
 
+    // Automatic movement lines (run previews and playback trails).
+    drawMovementLines(svgNamespace);
 
-  // Draw arrows, lines, and freehand drawings.
-  state.drawings.forEach(drawing => {
+    // Draw arrows, lines, and freehand drawings.
+    state.drawings.forEach(drawing => {
 
     let element;
 
-
     if (drawing.type === 'freehand') {
 
-      element = document.createElementNS(
-        svgNamespace,
-        'polyline'
-      );
+      element = document.createElementNS(svgNamespace, 'polyline');
 
       element.setAttribute(
         'points',
@@ -1907,41 +2174,42 @@ function renderDrawings() {
       );
 
       element.setAttribute('fill', 'none');
-
       element.setAttribute('stroke', drawing.color);
-
       element.setAttribute('stroke-width', '3');
-
       element.setAttribute('stroke-linecap', 'round');
-
       element.setAttribute('stroke-linejoin', 'round');
+
+    } else if (drawing.type === 'arrow' && drawing.style === 'dribble') {
+
+      // Squiggly line with an arrowhead.
+      element = document.createElementNS(svgNamespace, 'polyline');
+
+      element.setAttribute('points', getSquigglePoints(drawing));
+      element.setAttribute('fill', 'none');
+      element.setAttribute('stroke', drawing.color);
+      element.setAttribute('stroke-width', '3');
+      element.setAttribute('stroke-linecap', 'round');
+      element.setAttribute('stroke-linejoin', 'round');
+      element.setAttribute('marker-end', 'url(#arrowhead)');
 
     } else {
 
-      element = document.createElementNS(
-        svgNamespace,
-        'line'
-      );
+      element = document.createElementNS(svgNamespace, 'line');
 
       element.setAttribute('x1', drawing.x1);
-
       element.setAttribute('y1', drawing.y1);
-
       element.setAttribute('x2', drawing.x2);
-
       element.setAttribute('y2', drawing.y2);
-
       element.setAttribute('stroke', drawing.color);
-
       element.setAttribute('stroke-width', '3');
 
       if (drawing.type === 'arrow') {
+        element.setAttribute('marker-end', 'url(#arrowhead)');
+      }
 
-        element.setAttribute(
-          'marker-end',
-          'url(#arrowhead)'
-        );
-
+      // Player runs are dashed.
+      if (drawing.style === 'run') {
+        element.setAttribute('stroke-dasharray', '10 7');
       }
 
     }
@@ -1949,6 +2217,8 @@ function renderDrawings() {
     drawingLayer.appendChild(element);
 
   });
+
+
 
 
   // Define the arrowhead.
@@ -1981,7 +2251,7 @@ function renderDrawings() {
 
 
 /* =========================================================
-   20. GROUP MANAGEMENT
+   20a. GROUP MANAGEMENT
    ========================================================= */
 
 function updateGroupInstructions() {
@@ -2287,6 +2557,107 @@ if (cancelGroupBtn) {
   });
 
 }
+
+/* =========================================================
+   20b. DIAGRAM STANDARDS (pass / run / dribble)
+   ========================================================= */
+
+// Build a wavy line from the arrow's start to its end.
+function getSquigglePoints(drawing) {
+
+  const dx = drawing.x2 - drawing.x1;
+  const dy = drawing.y2 - drawing.y1;
+  const length = Math.hypot(dx, dy);
+
+  // Too short to squiggle: draw it straight.
+  if (length < 20) {
+    return `${drawing.x1},${drawing.y1} ${drawing.x2},${drawing.y2}`;
+  }
+
+  const WAVELENGTH = 26;   // distance between wave peaks
+  const AMPLITUDE = 6;     // how far the wave swings sideways
+  const TAPER = 20;        // the wave flattens near the tip so the arrowhead points straight
+
+  // Unit vector perpendicular to the arrow.
+  const nx = -dy / length;
+  const ny = dx / length;
+
+  const steps = Math.ceil(length / 2);
+  const points = [];
+
+  for (let i = 0; i <= steps; i++) {
+
+    const distance = (i / steps) * length;
+    const fade = Math.min(1, (length - distance) / TAPER);
+
+    const offset =
+      Math.sin((distance / WAVELENGTH) * 2 * Math.PI) * AMPLITUDE * fade;
+
+    const x = drawing.x1 + dx * (distance / length) + nx * offset;
+    const y = drawing.y1 + dy * (distance / length) + ny * offset;
+
+    points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+
+  }
+
+  return points.join(' ');
+
+}
+
+
+const standardsToggle = document.getElementById('standardsToggle');
+const standardsPanel = document.getElementById('standardsPanel');
+
+function updateStandardsUI() {
+
+  standardsPanel.hidden = !state.standardsMode;
+
+  document.querySelectorAll('.style-button').forEach(button => {
+    button.classList.toggle('active', button.dataset.style === state.arrowStyle);
+  });
+
+}
+
+// Switching standards on jumps straight to the Arrow tool.
+standardsToggle.addEventListener('change', () => {
+
+  if (isAnimating) {
+    standardsToggle.checked = state.standardsMode;
+    return;
+  }
+
+  state.standardsMode = standardsToggle.checked;
+
+  if (state.standardsMode) {
+    document.querySelector('.tool-button[data-tool="arrow"]').click();
+  }
+
+  updateStandardsUI();
+
+  showToast(
+    state.standardsMode
+      ? 'Diagram standards on'
+      : 'Diagram standards off'
+  );
+
+});
+
+// Picking Pass / Run / Dribble also selects the Arrow tool.
+document.querySelectorAll('.style-button').forEach(button => {
+
+  button.addEventListener('click', () => {
+
+    if (isAnimating) return;
+
+    state.arrowStyle = button.dataset.style;
+
+    document.querySelector('.tool-button[data-tool="arrow"]').click();
+
+    updateStandardsUI();
+
+  });
+
+});
 
 
 /* =========================================================
@@ -2668,7 +3039,7 @@ function undo() {
 
   state.groups = previous.groups || [];
 
-  state.zones = deepCopy(previousState.zones || []);
+  state.zones = deepCopy(previous.zones || []);
 
   state.animation = previous.animation || null;
 
@@ -2805,53 +3176,308 @@ document.getElementById('renameBtn').addEventListener(
    29. SAVE THE BOARD
    ========================================================= */
 
-document.getElementById('saveBtn').addEventListener(
-  'click',
-  () => {
+// One place that defines everything a saved tactic contains.
+function buildSavePayload() {
 
-    if (isAnimating) return;
+  saveActiveFrame();
 
-    // Save the latest active frame before saving the tactic.
-    saveActiveFrame();
+  return {
+    players: state.players,
+    ball: state.ball,
+    drawings: state.drawings,
+    groups: state.groups,
+    zones: state.zones,
+    animation: state.animation,
+    boardName: state.boardName,
+    homeFormation: document.getElementById('formationSelect').value,
+    awayFormation: document.getElementById('awayFormationSelect').value
+  };
 
-    const payload = {
+}
 
-      players: state.players,
+// Save inside this browser (your existing button).
+document.getElementById('saveBtn').addEventListener('click', () => {
 
-      ball: state.ball,
+  if (isAnimating) return;
 
-      drawings: state.drawings,
+  localStorage.setItem(
+    'tactcl-board-save',
+    JSON.stringify(buildSavePayload())
+  );
 
-      groups: state.groups,
+  showToast('Tactic saved in this browser');
 
-      // Save both animation frames.
-      animation: state.animation,
+});
 
-      boardName: state.boardName,
 
-      homeFormation:
-        document.getElementById('formationSelect').value,
+/* =========================================================
+   29b. SAVE AS (download a file) AND IMPORT
+   ========================================================= */
 
-      awayFormation:
-        document.getElementById('awayFormationSelect').value
+const FILE_APP_ID = 'tactcl-soccer-board';
+const FILE_VERSION = 1;
 
-    };
+function safeFileName(name) {
 
-    localStorage.setItem(
-      'tactcl-board-save',
-      JSON.stringify(payload)
-    );
+  return String(name)
+    .replace(/[^a-z0-9]/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'TACTCL-Board';
 
-    showToast('Tactic saved in this browser');
+}
+
+document.getElementById('saveAsBtn').addEventListener('click', async () => {
+
+  if (isAnimating) return;
+
+  const fileContents = JSON.stringify({
+    app: FILE_APP_ID,
+    version: FILE_VERSION,
+    savedAt: new Date().toISOString(),
+    data: buildSavePayload()
+  }, null, 2);
+
+  const filename = `${safeFileName(state.boardName)}.tactcl.json`;
+
+  // Chrome / Edge: real "Save As" dialog.
+  if (window.showSaveFilePicker) {
+
+    try {
+
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{
+          description: 'TACTCL tactic',
+          accept: { 'application/json': ['.json'] }
+        }]
+      });
+
+      const writable = await handle.createWritable();
+      await writable.write(fileContents);
+      await writable.close();
+
+      showToast(`Saved ${handle.name}`);
+      return;
+
+    } catch (error) {
+
+      if (error.name === 'AbortError') return;   // user cancelled
+      console.warn('Save dialog failed, downloading instead:', error);
+
+    }
 
   }
-);
+
+  // Firefox / Safari: normal download.
+  const blob = new Blob([fileContents], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  link.click();
+
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+  showToast(`Saved ${filename}`);
+
+});
+
+
+// Check that imported data is safe to load.
+function validateSavedData(data) {
+
+  if (!data || typeof data !== 'object') return 'The file is empty or damaged';
+
+  if (!Array.isArray(data.players)) return 'No players found in this file';
+
+  if (data.players.length > 200) return 'This file has too many players';
+
+  const playersAreValid = data.players.every(player =>
+    player &&
+    typeof player.id === 'string' &&
+    (player.team === 'home' || player.team === 'away') &&
+    Number.isFinite(player.x) &&
+    Number.isFinite(player.y)
+  );
+
+  if (!playersAreValid) return 'Player data is damaged';
+
+  if (data.ball && !(Number.isFinite(data.ball.x) && Number.isFinite(data.ball.y))) {
+    return 'Ball data is damaged';
+  }
+
+  for (const key of ['drawings', 'groups', 'zones']) {
+    if (data[key] !== undefined && !Array.isArray(data[key])) {
+      return `${key} data is damaged`;
+    }
+  }
+
+  return null;
+
+}
+
+
+const importBtn = document.getElementById('importBtn');
+const importFile = document.getElementById('importFile');
+
+importBtn.addEventListener('click', () => {
+
+  if (isAnimating) return;
+
+  importFile.click();
+
+});
+
+importFile.addEventListener('change', () => {
+
+  const file = importFile.files[0];
+
+  importFile.value = '';   // lets the same file be imported twice
+
+  if (!file) return;
+
+  if (file.size > 20 * 1024 * 1024) {
+    showToast('That file is too large');
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+
+    try {
+
+      const parsed = JSON.parse(reader.result);
+
+      if (parsed.app !== FILE_APP_ID || !parsed.data) {
+        throw new Error('This is not a TACTCL file');
+      }
+
+      if (parsed.version > FILE_VERSION) {
+        throw new Error('This file was made with a newer version');
+      }
+
+      const problem = validateSavedData(parsed.data);
+
+      if (problem) throw new Error(problem);
+
+      if (!confirm('Importing will replace the current board. Continue?')) {
+        return;
+      }
+
+      snapshot();                       // so Undo can bring the old board back
+      applySavedData(parsed.data);
+
+      showToast(`Imported "${state.boardName}"`);
+
+    } catch (error) {
+
+      console.error('Import error:', error);
+      showToast(`Import failed: ${error.message}`);
+
+    }
+
+  };
+
+  reader.onerror = () => showToast('Could not read that file');
+
+  reader.readAsText(file);
+
+});
 
 
 /* =========================================================
    30. LOAD A SAVED BOARD
    ========================================================= */
 
+// Rebuild the whole board from saved data.
+// Used by both the browser save and file import.
+function applySavedData(saved) {
+
+  state.players = saved.players || state.players;
+
+  state.ball = saved.ball || state.ball;
+
+  state.drawings = saved.drawings || [];
+
+  state.groups = saved.groups || [];
+
+  state.zones = saved.zones || [];
+
+  state.groupSelection = [];
+
+  state.selectedId = null;
+
+  // Clear any half-finished zone.
+  pendingZone = null;
+  zoneStart = null;
+  document.getElementById('zoneConfirmControls').hidden = true;
+
+  state.boardName = saved.boardName || 'Untitled tactic';
+
+
+  // Restore animation frames.
+  if (
+    saved.animation &&
+    Array.isArray(saved.animation.frames) &&
+    saved.animation.frames.length >= 1 &&
+    saved.animation.frames.length <= MAX_ANIMATION_FRAMES
+  ) {
+
+    state.animation = saved.animation;
+
+    // Older saves may not have per-frame drawings, groups, or zones.
+    state.animation.frames.forEach(frame => {
+
+      if (!Array.isArray(frame.positions)) frame.positions = [];
+
+      if (!Array.isArray(frame.drawings)) {
+        frame.drawings = deepCopy(saved.drawings || []);
+      }
+
+      if (!Array.isArray(frame.groups)) {
+        frame.groups = deepCopy(saved.groups || []);
+      }
+
+      if (!Array.isArray(frame.zones)) {
+        frame.zones = [];
+      }
+
+    });
+
+    state.animation.activeFrame = Math.max(
+      0,
+      Math.min(
+        state.animation.frames.length - 1,
+        Number(saved.animation.activeFrame) || 0
+      )
+    );
+
+    applyAnimationFrame(state.animation.activeFrame);
+
+  } else {
+
+    state.animation = null;
+
+  }
+
+  document.getElementById('boardName').textContent = state.boardName;
+
+  if (formations[saved.homeFormation]) {
+    document.getElementById('formationSelect').value = saved.homeFormation;
+  }
+
+  if (formations[saved.awayFormation]) {
+    document.getElementById('awayFormationSelect').value = saved.awayFormation;
+  }
+
+  render();
+
+}
+
+
+// Load the browser save when the page opens.
 function loadSaved() {
 
   const raw = localStorage.getItem('tactcl-board-save');
@@ -2860,92 +3486,7 @@ function loadSaved() {
 
   try {
 
-    const saved = JSON.parse(raw);
-
-    state.players = saved.players || state.players;
-
-    state.ball = saved.ball || state.ball;
-
-    state.drawings = saved.drawings || [];
-
-    state.groups = saved.groups || [];
-
-    state.groupSelection = [];
-
-    state.boardName = saved.boardName || state.boardName;
-
-
-    // Restore saved animation frames.
-    // Restore saved animation frames.
-
-    if (
-      saved.animation &&
-      Array.isArray(saved.animation.frames) &&
-      saved.animation.frames.length >= 1 &&
-      saved.animation.frames.length <= MAX_ANIMATION_FRAMES
-    ) {
-
-      state.animation = saved.animation;
-
-      // Migrate older saved frames that do not have
-      // their own drawings and groups.
-      state.animation.frames.forEach(frame => {
-
-        if (!Array.isArray(frame.drawings)) {
-          frame.drawings = deepCopy(saved.drawings || []);
-        }
-
-        if (!Array.isArray(frame.groups)) {
-          frame.groups = deepCopy(saved.groups || []);
-        }
-
-        if (!Array.isArray(frame.zones)) {
-          frame.zones = [];
-        }
-
-      });
-
-      state.animation.activeFrame = Math.max(
-        0,
-        Math.min(
-          state.animation.frames.length - 1,
-          Number(saved.animation.activeFrame) || 0
-        )
-      );
-
-    } else {
-
-      state.animation = null;
-
-    }
-
-
-    // Restore the currently selected frame.
-
-    if (state.animation) {
-
-      applyAnimationFrame(state.animation.activeFrame);
-
-    }
-
-    document.getElementById('boardName').textContent =
-      state.boardName;
-
-    if (saved.homeFormation) {
-
-      document.getElementById('formationSelect').value =
-        saved.homeFormation;
-
-    }
-
-    if (saved.awayFormation) {
-
-      document.getElementById('awayFormationSelect').value =
-        saved.awayFormation;
-
-    }
-
-    render();
+    applySavedData(JSON.parse(raw));
 
   } catch (error) {
 
@@ -2956,6 +3497,7 @@ function loadSaved() {
 }
 
 
+//Export Video
 async function exportAnimatedVideo(board) {
 
   if (typeof VideoEncoder === 'undefined' || typeof Mp4Muxer === 'undefined') {
@@ -3045,7 +3587,12 @@ async function exportAnimatedVideo(board) {
     for (let index = 1; index < frames.length; index++) {
 
       applyAnimationFrame(index - 1);
+      startAnimationTrail();
+      animationTargetIndex = index;          // <-- add
       renderDrawings();
+
+      // Hold on the planned paths before the move starts.   <-- add these 2 lines
+      shots.push({ blob: await grab(), repeat: Math.round(PREVIEW_HOLD_MS / 1000 * FPS) });
 
       for (let step = 1; step <= STEPS; step++) {
 

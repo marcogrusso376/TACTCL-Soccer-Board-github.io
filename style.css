@@ -999,3 +999,105 @@ button {
   cursor: not-allowed;
 }
 
+/* ===== DIAGRAM STANDARDS TOGGLE ===== */
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  color: #dce4ed;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  inset: 0;
+  background: #8f97b5;
+  border-radius: 22px;
+  transition: .2s;
+}
+
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: .2s;
+}
+
+.switch input:checked + .switch-slider {
+  background: var(--blue);
+}
+
+.switch input:checked + .switch-slider::before {
+  transform: translateX(16px);
+}
+
+.switch input:focus-visible + .switch-slider {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Arrow type buttons */
+
+.style-grid {
+  display: grid;
+  gap: 7px;
+}
+
+.style-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
+  border: 1px solid #e5e9ee;
+  background: var(--button);
+  color: #455267;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.style-button svg {
+  flex-shrink: 0;
+  color: #33445b;
+}
+
+.style-button small {
+  display: block;
+  margin-top: 2px;
+  color: #7c8797;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.style-button.active {
+  border-color: #806ed7;
+  color: #221a76;
+}
+
+.style-button.active svg {
+  color: #37259a;
+}
