@@ -15,8 +15,8 @@
   --line: #597aa1;
   --blue: #836ce1;
   --green: #28794e;
-  --home: #3a2d8f;
-  --away: #e8edf3;
+  --home: #265ebd;
+  --away: #ef0808;
   --button: #d2dbe8;
 }
 
@@ -212,7 +212,7 @@ button {
 }
 
 .away-dot {
-  background: #64758a;
+  background: var(--away);
 }
 
 .field-label {
@@ -615,10 +615,10 @@ button {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  border: 2px solid white;
+  border: 2px solid rgb(0, 0, 0);
   box-shadow: 0 2px 6px #10203055;
   cursor: grab;
-  color: #172235;
+  color: #ffffff;
   font-size: 10px;
   font-weight: 800;
   line-height: 1;

@@ -1107,7 +1107,6 @@ function render() {
 
     el.innerHTML = `
       <span>${escapeHtml(player.number)}</span>
-      <span class="player-label">${escapeHtml(player.name)}</span>
     `;
 
     el.addEventListener('pointerdown', onPlayerPointerDown);
@@ -1547,8 +1546,6 @@ pitch.addEventListener('pointerdown', event => {
       number: state.players.filter(
         p => p.team === state.activeTeam
       ).length + 1,
-
-      name: 'New player',
 
       x: point.x,
 
