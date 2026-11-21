@@ -113,6 +113,70 @@
 
         </div>
 
+        <!-- Home jersey color -->
+        <div id="homeColorSetting">
+
+          <label class="field-label" for="homeTeamColor">
+            Home jersey color
+          </label>
+
+          <input
+            class="color-control"
+            type="color"
+            id="homeTeamColor"
+            value="#265ebd"
+          >
+
+        </div>
+
+
+        <!-- Away jersey color -->
+        <div id="awayColorSetting" hidden>
+
+          <label class="field-label" for="awayTeamColor">
+            Away jersey color
+          </label>
+
+          <input
+            class="color-control"
+            type="color"
+            id="awayTeamColor"
+            value="#ef0808"
+          >
+
+        </div>
+
+        <!-- Home goalkeeper color -->
+        <div id="homeGoalkeeperColorSetting">
+
+          <label class="field-label" for="homeGoalkeeperColor">
+            Home goalkeeper color
+          </label>
+
+          <input
+            class="color-control"
+            type="color"
+            id="homeGoalkeeperColor"
+            value="#e9c840"
+          >
+
+        </div>
+
+        <!-- Away goalkeeper color -->
+        <div id="awayGoalkeeperColorSetting" hidden>
+
+          <label class="field-label" for="awayGoalkeeperColor">
+            Away goalkeeper color
+          </label>
+
+          <input
+            class="color-control"
+            type="color"
+            id="awayGoalkeeperColor"
+            value="#20a879"
+          >
+
+        </div>
 
         <!-- Home team formation -->
         <label class="field-label" for="formationSelect">
@@ -417,6 +481,17 @@
 
           </select>
 
+          <!-- Change player role -->
+          <label class="field-label" for="playerRole">
+            Player role
+          </label>
+
+          <select class="select-control" id="playerRole">
+
+            <option value="outfield">Outfield player</option>
+            <option value="goalkeeper">Goalkeeper</option>
+
+          </select>
 
           <!-- Delete selected player -->
           <button
@@ -472,6 +547,11 @@
           <button class="btn" id="flipBtn">
             ⇄ Flip board
           </button>
+
+          <select class="btn" id="fieldOrientation">
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+          </select>
 
           <button class="btn" id="clearBtn">
             Clear board

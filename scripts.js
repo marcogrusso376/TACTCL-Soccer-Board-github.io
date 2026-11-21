@@ -97,10 +97,18 @@ function fixPenaltyArcs(clonedDocument) {
 
 }
 
+function fixVerticalClipping(clonedDocument) {
+  const stage = clonedDocument.querySelector('.pitch-stage');
+  if (!stage || !stage.classList.contains('vertical')) return;
+  const pitchEl = clonedDocument.querySelector('.pitch');
+  if (pitchEl) pitchEl.style.overflow = 'visible';
+}
+
 // One function for every export-only fix.
 function prepareCloneForExport(clonedDocument) {
   fixGrassStripes(clonedDocument);
   fixPenaltyArcs(clonedDocument);
+  fixVerticalClipping(clonedDocument);
 }
 
 
@@ -109,6 +117,11 @@ function prepareCloneForExport(clonedDocument) {
    ========================================================= */
 
 const pitch = document.getElementById('pitch');
+const pitchStage = document.querySelector('.pitch-stage');
+
+const fieldOrientationSelect =
+  document.getElementById('fieldOrientation');
+
 const playersLayer = document.getElementById('playersLayer');
 const drawingLayer = document.getElementById('drawingLayer');
 const toastEl = document.getElementById('toast');
@@ -124,6 +137,21 @@ const playFullAnimationBtn = document.getElementById('playFullAnimationBtn');
 const MAX_ANIMATION_FRAMES = 10;
 const FRAME_ANIMATION_DURATION = 1000;
 
+
+/* =========================================================
+   FIELD ORIENTATION
+   ========================================================= */
+
+function applyFieldOrientation() {
+
+  pitchStage.classList.toggle(
+    'vertical',
+    state.fieldOrientation === 'vertical'
+  );
+
+  fieldOrientationSelect.value = state.fieldOrientation;
+
+}
 
 /* =========================================================
    2. FORMATION COORDINATES
@@ -185,6 +213,16 @@ let state = {
 
   players: [],
 
+  teamColors: {
+    home: '#265ebd',
+    away: '#ef0808'
+  },
+
+  goalkeeperColors: {
+    home: '#e9c840',
+    away: 'rgb(120, 32, 168)'
+  },
+
   ball: {
     x: 50,
     y: 50
@@ -205,6 +243,8 @@ let state = {
   tool: 'select',
 
   flipped: false,
+
+  fieldOrientation: 'horizontal',
 
   standardsMode: false,
   
@@ -232,6 +272,115 @@ let currentPath = null;
 let toastTimer;
 
 let isAnimating = false;
+
+// Apply the selected team colors to the board.
+function applyTeamColors() {
+
+  const homeColor = state.teamColors.home;
+  const awayColor = state.teamColors.away;
+
+  // Update the jersey colors.
+  document.documentElement.style.setProperty(
+    '--home',
+    homeColor
+  );
+
+  document.documentElement.style.setProperty(
+    '--away',
+    awayColor
+  );
+
+  // Keep the color pickers synchronized.
+  document.getElementById('homeTeamColor').value = homeColor;
+  document.getElementById('awayTeamColor').value = awayColor;
+  
+
+}
+
+// Show only the active team's jersey color setting.
+function updateTeamColorVisibility() {
+
+  document.getElementById('homeColorSetting').hidden =
+    state.activeTeam !== 'home';
+
+  document.getElementById('awayColorSetting').hidden =
+    state.activeTeam !== 'away';
+
+}
+
+// Change the Home team's jersey color.
+document.getElementById('homeTeamColor').addEventListener('change', event => {
+
+  if (isAnimating) return;
+
+  snapshot();
+
+  state.teamColors.home = event.target.value;
+
+  applyTeamColors();
+
+});
+
+// Change the Away team's jersey color.
+document.getElementById('awayTeamColor').addEventListener('change', event => {
+
+  if (isAnimating) return;
+
+  snapshot();
+
+  state.teamColors.away = event.target.value;
+
+  applyTeamColors();
+
+});
+
+document.getElementById('homeGoalkeeperColor').addEventListener('change', event => {
+  if (isAnimating) return;
+  snapshot();
+  state.goalkeeperColors.home = event.target.value;
+  applyGoalkeeperColors();
+});
+
+document.getElementById('awayGoalkeeperColor').addEventListener('change', event => {
+  if (isAnimating) return;
+  snapshot();
+  state.goalkeeperColors.away = event.target.value;
+  applyGoalkeeperColors();
+});
+
+fieldOrientationSelect.addEventListener('change', event => {
+
+  if (isAnimating) {
+    applyFieldOrientation();
+    return;
+  }
+
+  snapshot();
+
+  state.fieldOrientation = event.target.value;
+
+  applyFieldOrientation();
+
+});
+
+function applyGoalkeeperColors() {
+  const homeColor = state.goalkeeperColors.home;
+  const awayColor = state.goalkeeperColors.away;
+
+  document.documentElement.style.setProperty('--home-gk', homeColor);
+  document.documentElement.style.setProperty('--away-gk', awayColor);
+
+  document.getElementById('homeGoalkeeperColor').value = homeColor;
+  document.getElementById('awayGoalkeeperColor').value = awayColor;
+}
+
+function updateGoalkeeperColorVisibility() {
+  document.getElementById('homeGoalkeeperColorSetting').hidden =
+    state.activeTeam !== 'home';
+
+  document.getElementById('awayGoalkeeperColorSetting').hidden =
+    state.activeTeam !== 'away';
+}
 
 
 /* =========================================================
@@ -975,6 +1124,10 @@ function snapshot() {
 
     players: state.players,
 
+    teamColors: state.teamColors,
+
+    fieldOrientation: state.fieldOrientation,
+
     ball: state.ball,
 
     drawings: state.drawings,
@@ -1037,6 +1190,8 @@ function makeTeam(team, formation = '4-3-3') {
       ? `Home ${i + 1}`
       : `Away ${i + 1}`,
 
+    role: i === 0 ? 'goalkeeper' : 'outfield',
+
     x: team === 'home' ? x : 100 - x,
 
     y: y
@@ -1054,9 +1209,9 @@ function initialize() {
 
   state.players = [
 
-    ...makeTeam('home'),
+    ...makeTeam('home', '4-3-3'),
 
-    ...makeTeam('away')
+    ...makeTeam('away', '4-3-3')
 
   ];
 
@@ -1079,6 +1234,9 @@ function initialize() {
 
 function render() {
 
+  applyTeamColors();
+  applyGoalkeeperColors();
+
   // Trails only exist while an animation is playing.
   if (!isAnimating) {
     animationTrail = null;
@@ -1096,6 +1254,7 @@ function render() {
     const el = document.createElement('div');
 
     el.className = `player ${player.team}
+      ${player.role === 'goalkeeper' ? 'goalkeeper' : ''}
       ${state.selectedId === player.id ? 'selected' : ''}
       ${state.groupSelection.includes(player.id) ? 'group-selected' : ''}`;
 
@@ -1115,6 +1274,7 @@ function render() {
 
   });
 
+  renderPlayerLabels();
 
   // Create the soccer ball.
   const ball = document.createElement('div');
@@ -1152,6 +1312,9 @@ function render() {
 
   });
 
+  //Update the team nd goalkeeper color option visibility.
+  updateTeamColorVisibility();
+  updateGoalkeeperColorVisibility();
 
   // Update the animation buttons.
   updateAnimationControls();
@@ -1200,6 +1363,8 @@ function updateEditor() {
 
   document.getElementById('playerTeam').value = player.team;
 
+  document.getElementById('playerRole').value = player.role || 'outfield';
+
 }
 
 
@@ -1207,25 +1372,26 @@ function updateEditor() {
    12. COORDINATE CALCULATIONS
    ========================================================= */
 
-function coordsFromEvent(event) {
 
+function coordsFromEvent(event) {
   const rect = pitch.getBoundingClientRect();
 
+  let x = (event.clientX - rect.left) / rect.width * 100;
+  let y = (event.clientY - rect.top) / rect.height * 100;
+
+  // Convert screen coordinates back into pitch coordinates.
+  if (state.fieldOrientation === 'vertical') {
+    const oldX = x;
+    x = y;
+    y = 100 - oldX;
+  }
+
   return {
-
-    x: Math.max(
-      0,
-      Math.min(100, (event.clientX - rect.left) / rect.width * 100)
-    ),
-
-    y: Math.max(
-      0,
-      Math.min(100, (event.clientY - rect.top) / rect.height * 100)
-    )
-
+    x: Math.max(0, Math.min(100, x)),
+    y: Math.max(0, Math.min(100, y))
   };
-
 }
+
 
 
 /* =========================================================
@@ -1321,6 +1487,8 @@ function onPlayerPointerDown(event) {
     );
 
   });
+
+  renderPlayerLabels();
 
   updateEditor();
 
@@ -2763,13 +2931,14 @@ document.querySelectorAll('.team-tab').forEach(button => {
     state.activeTeam = button.dataset.team;
 
     document.querySelectorAll('.team-tab').forEach(teamButton => {
-
       teamButton.classList.toggle(
         'active',
-        teamButton === button
+        teamButton.dataset.team === state.activeTeam
       );
-
     });
+
+    updateTeamColorVisibility();
+    updateGoalkeeperColorVisibility();
 
   });
 
@@ -2953,25 +3122,50 @@ document.getElementById('playerTeam').addEventListener(
   }
 );
 
+document.getElementById('playerRole').addEventListener('change', event => {
+  if (isAnimating) return;
+
+  const player = state.players.find(p => p.id === state.selectedId);
+
+  if (!player) return;
+
+  snapshot();
+
+  player.role = event.target.value;
+
+  render();
+});
+
 
 function renderPlayerLabels() {
 
+  // Remove existing player labels.
+  playersLayer.querySelectorAll('.player-label').forEach(label => {
+    label.remove();
+  });
+
+  // Find the currently selected player.
   const player = state.players.find(
     p => p.id === state.selectedId
   );
 
-  if (!player) return;
+  if (!player || !player.name) return;
 
+  // Find that player's marker.
   const element = playersLayer.querySelector(
     `[data-id="${CSS.escape(state.selectedId)}"]`
   );
 
-  if (element) {
+  if (!element) return;
 
-    element.querySelector('.player-label').textContent =
-      player.name;
+  // Create the name label.
+  const label = document.createElement('span');
 
-  }
+  label.className = 'player-label';
+
+  label.textContent = player.name;
+
+  element.appendChild(label);
 
 }
 
@@ -3030,6 +3224,11 @@ function undo() {
 
   state.players = previous.players;
 
+  state.teamColors = previous.teamColors || {
+    home: '#265ebd',
+    away: '#ef0808'
+  };
+
   state.ball = previous.ball;
 
   state.drawings = previous.drawings;
@@ -3039,6 +3238,10 @@ function undo() {
   state.zones = deepCopy(previous.zones || []);
 
   state.animation = previous.animation || null;
+
+  state.fieldOrientation = previous.fieldOrientation || 'horizontal';
+
+  applyFieldOrientation();
 
   state.groupSelection = [];
 
@@ -3180,6 +3383,8 @@ function buildSavePayload() {
 
   return {
     players: state.players,
+    teamColors: state.teamColors,
+    fieldOrientation: state.fieldOrientation,
     ball: state.ball,
     drawings: state.drawings,
     groups: state.groups,
@@ -3392,7 +3597,27 @@ importFile.addEventListener('change', () => {
 // Used by both the browser save and file import.
 function applySavedData(saved) {
 
-  state.players = saved.players || state.players;
+  state.players = (saved.players || state.players).map(player => ({
+    ...player,
+    role: player.role || (player.number === 1 ? 'goalkeeper' : 'outfield')
+  }));
+
+  state.teamColors = {
+    home: /^#[0-9a-f]{6}$/i.test(saved.teamColors?.home || '')
+      ? saved.teamColors.home
+      : '#265ebd',
+
+    away: /^#[0-9a-f]{6}$/i.test(saved.teamColors?.away || '')
+      ? saved.teamColors.away
+      : '#ef0808'
+  };
+
+  state.fieldOrientation =
+    saved.fieldOrientation === 'vertical'
+      ? 'vertical'
+      : 'horizontal';
+
+  applyFieldOrientation();
 
   state.ball = saved.ball || state.ball;
 
@@ -3505,6 +3730,10 @@ async function exportAnimatedVideo(board) {
   const FPS = 30;
   const CAPTURE_SCALE = 2;
   const STEPS = Math.round((FRAME_ANIMATION_DURATION / 1000) * FPS);
+  const isVertical = state.fieldOrientation === 'vertical';
+
+  const OUTPUT_WIDTH = isVertical ? 2200 : 3644;
+  const OUTPUT_HEIGHT = isVertical ? 3644 : 2200;
   const HOLD_START_MS = 700;
   const HOLD_END_MS = 1000;
   const BITRATE = 30000000;          // 30 Mbps keeps thin lines and borders crisp
@@ -3522,6 +3751,7 @@ async function exportAnimatedVideo(board) {
     onclone: prepareCloneForExport          // draws the two-tone grass
   };
 
+  
   let width = 0;
   let height = 0;
 

@@ -17,6 +17,8 @@
   --green: #28794e;
   --home: #265ebd;
   --away: #ef0808;
+  --home-gk: #e9c840;
+  --away-gk: rgb(120, 32, 168);
   --button: #d2dbe8;
 }
 
@@ -625,12 +627,22 @@ button {
   touch-action: none;
 }
 
+/*Player specfic colors */
 .player.home {
   background: var(--home);
 }
 
 .player.away {
   background: var(--away);
+}
+
+/* Goalkeeper-specific colors */
+.player.home.goalkeeper {
+  background: var(--home-gk);
+}
+
+.player.away.goalkeeper {
+  background: var(--away-gk);
 }
 
 /* Highlight the player currently selected. */
@@ -875,6 +887,17 @@ button {
   cursor: pointer;
 }
 
+/* Team jersey color pickers. */
+.color-control {
+  width: 100%;
+  height: 36px;
+  padding: 3px;
+  border: 1px solid #e1e6ec;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
 /* Highlight players currently selected for a group. */
 .player.group-selected {
   outline: 3px solid #ffffff;
@@ -1100,4 +1123,40 @@ button {
 
 .style-button.active svg {
   color: #37259a;
+}
+
+
+/* =========================================================
+   VERTICAL FIELD ORIENTATION
+   Rotates the complete pitch while keeping player markers
+   and the ball upright.
+   ========================================================= */
+
+
+.pitch-stage.vertical {
+  width: min(100%, calc(min(88vh, 800px) * 640 / 1060));
+  aspect-ratio: 640 / 1060;
+  height: auto;
+  flex-shrink: 0;
+}
+
+
+/* Rotate and resize the pitch to fit the vertical stage. */
+.pitch-stage.vertical .pitch {
+  width: 165.625%;
+  height: 60.377%;
+  left: -32.8125%;
+  top: 19.811%;
+  transform: rotate(-90deg);
+  transform-origin: center center;
+}
+
+/* Keep player markers and their labels upright. */
+.pitch-stage.vertical .player {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+/* Keep the ball upright too. */
+.pitch-stage.vertical .ball {
+  transform: translate(-50%, -50%) rotate(90deg);
 }
