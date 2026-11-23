@@ -6,17 +6,17 @@
 
 /* BRAND COLORS — Change these to update the theme globally. */
 :root {
-  --navy: #1a2b45;
+  --navy: #141b2e;
   --navy-2: #17263a;
-  --panel: #3f437a;
+  --panel: #244a70;
   --page: #9fc1e2;
-  --text: #172235;
+  --text: #000000;
   --muted: #7c8797;
   --line: #597aa1;
   --blue: #836ce1;
   --green: #28794e;
-  --home: #265ebd;
-  --away: #ef0808;
+  --home: rgb(4, 106, 180);
+  --away: rgb(250, 1, 7);
   --home-gk: #e9c840;
   --away-gk: rgb(120, 32, 168);
   --button: #d2dbe8;
@@ -470,7 +470,7 @@ button {
   background: #ffffffb8;
 }
 
-/* Verticl halfway line. */
+/* Vertical halfway line. */
 .halfway {
   width: 1px;
   height: 100%;
@@ -621,7 +621,7 @@ button {
   box-shadow: 0 2px 6px #10203055;
   cursor: grab;
   color: #ffffff;
-  font-size: 10px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1;
   touch-action: none;
@@ -676,7 +676,7 @@ button {
   background: #fff;
   border: 1px solid #263449;
   box-shadow: 0 2px 5px #10203066;
-  z-index: 6;
+  z-index: 10;
   display: grid;
   place-items: center;
   font-size: 12px;

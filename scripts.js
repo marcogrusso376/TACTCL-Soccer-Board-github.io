@@ -261,6 +261,8 @@ let undoStack = [];
 
 let drag = null;
 
+let dribblePath = [];
+
 let drawStart = null;
 
 let zoneStart = null;
@@ -1382,8 +1384,10 @@ function coordsFromEvent(event) {
   // Convert screen coordinates back into pitch coordinates.
   if (state.fieldOrientation === 'vertical') {
     const oldX = x;
-    x = y;
-    y = 100 - oldX;
+    const oldY = y;
+
+    x = 100 - oldY;
+    y = oldX;
   }
 
   return {
@@ -1391,7 +1395,20 @@ function coordsFromEvent(event) {
     y: Math.max(0, Math.min(100, y))
   };
 }
+// Distance at which the ball and a player count as attached
+// (in % of pitch width).
+const ATTACH_DISTANCE = 4.5;
 
+// The pitch is 1060:640, so one y-unit is shorter than one x-unit.
+const PITCH_ASPECT_Y = 640 / 1060;
+
+// Distance between two pitch points, measured as a true circle.
+function pitchDistance(a, b) {
+  return Math.hypot(
+    a.x - b.x,
+    (a.y - b.y) * PITCH_ASPECT_Y
+  );
+}
 
 
 /* =========================================================
@@ -1407,6 +1424,8 @@ function onPlayerPointerDown(event) {
   const id = event.currentTarget.dataset.id;
 
   const player = state.players.find(p => p.id === id);
+
+  if (!player) return;
 
 
   // GROUP TOOL: Add or remove a player from the selection.
@@ -1443,9 +1462,7 @@ function onPlayerPointerDown(event) {
     removePlayerFromAnimationFrames(id);
 
     if (state.selectedId === id) {
-
       state.selectedId = null;
-
     }
 
     render();
@@ -1456,11 +1473,13 @@ function onPlayerPointerDown(event) {
 
 
   // Players can only be dragged using Select or Player.
-  if (state.tool !== 'select' && state.tool !== 'player') {
-
-    return;
-
-  }
+  if (
+  state.tool !== 'select' &&
+  state.tool !== 'player' &&
+  state.tool !== 'ball'
+) {
+  return;
+}
 
 
   snapshot();
@@ -1469,13 +1488,36 @@ function onPlayerPointerDown(event) {
 
   state.activeTeam = player.team;
 
+
+  // Check whether the ball is close enough to this player
+  // to be considered attached.
+  // Holding Shift drags the player alone, even with the ball in range.
+  const ballIsAttached =
+    !event.shiftKey &&
+    pitchDistance(state.ball, player) <= ATTACH_DISTANCE;
+
+
   drag = {
 
     type: 'player',
 
-    id: id
+    id: id,
+
+    carriesBall: ballIsAttached,
+
+    // Preserve the ball's position relative to the player.
+    ballOffsetX: state.ball.x - player.x,
+
+    ballOffsetY: state.ball.y - player.y
 
   };
+
+
+  // Start recording the dribbling path.
+  dribblePath = ballIsAttached
+    ? [{ x: state.ball.x, y: state.ball.y }]
+    : [];
+
 
   event.currentTarget.setPointerCapture(event.pointerId);
 
@@ -1501,16 +1543,15 @@ function onPlayerPointerDown(event) {
 
 function onBallPointerDown(event) {
 
+  console.log("BALL CLICKED - ACTIVE TOOL:", state.tool);
+
   if (isAnimating) return;
 
   event.stopPropagation();
 
   if (state.tool === 'group') {
-
     return;
-
   }
-
 
   // Eraser resets the ball.
   if (state.tool === 'eraser') {
@@ -1518,39 +1559,63 @@ function onBallPointerDown(event) {
     snapshot();
 
     state.ball = {
-
       x: 50,
-
       y: 50
-
     };
 
     render();
 
     return;
-
   }
-
 
   // Only Select and Player tools can drag the ball.
   if (state.tool !== 'select' && state.tool !== 'player') {
-
     return;
-
   }
 
   snapshot();
 
+  // Find the closest player to the ball.
+  let closestPlayer = null;
+  let closestDistance = ATTACH_DISTANCE;
+
+  state.players.forEach(player => {
+
+    const distance = pitchDistance(player, state.ball);
+
+    // Holding Shift drags the ball alone, even with a player in range.
+    if (!event.shiftKey && distance <= closestDistance) {
+      closestDistance = distance;
+      closestPlayer = player;
+    }
+
+  });
+
+  // Start dragging the ball.
   drag = {
+    type: 'ball',
 
-    type: 'ball'
+    // Attach the closest player if they are within range.
+    carriesPlayer: closestPlayer ? closestPlayer.id : null,
 
+    // Remember the player's position relative to the ball.
+    playerOffsetX: closestPlayer
+      ? closestPlayer.x - state.ball.x
+      : 0,
+
+    playerOffsetY: closestPlayer
+      ? closestPlayer.y - state.ball.y
+      : 0
   };
+
+  // Start the dribbling trail at the ball's current position.
+  dribblePath = closestPlayer
+    ? [{ x: state.ball.x, y: state.ball.y }]
+    : [];
 
   event.currentTarget.setPointerCapture(event.pointerId);
 
 }
-
 
 
 
@@ -1560,80 +1625,145 @@ function onBallPointerDown(event) {
 
 pitch.addEventListener('pointermove', event => {
 
+
   if (isAnimating) return;
 
-  // Preview a tactical zone while dragging.
-  if (zoneStart) {
+  // Only continue if something is currently being dragged.
+  if (!drag) return;
+  console.log("DRAGGING:", drag);
 
-    zoneStart.end = coordsFromEvent(event);
+  // Get the current pointer position on the pitch.
+  const point = coordsFromEvent(event);
 
-    renderDrawings();
+  // Move a player.
+  if (drag.type === 'player') {
 
-    return;
+    const player = state.players.find(
+      p => p.id === drag.id
+    );
 
-  }
+    if (player) {
 
-  if (drag) {
+      const oldX = player.x;
+      const oldY = player.y;
 
-    const point = coordsFromEvent(event);
+      player.x = point.x;
+      player.y = point.y;
 
 
-    // Move a player.
-    if (drag.type === 'player') {
+      // If the player is carrying the ball, move it too.
+      if (drag.carriesBall) {
 
-      const player = state.players.find(
-        p => p.id === drag.id
+        state.ball = {
+
+          x: Math.max(0, Math.min(
+            100,
+            player.x + drag.ballOffsetX
+          )),
+
+          y: Math.max(0, Math.min(
+            100,
+            player.y + drag.ballOffsetY
+          ))
+
+        };
+
+        dribblePath.push({
+          x: state.ball.x,
+          y: state.ball.y
+        });
+
+      }
+
+
+      // Update the player's position visually.
+      const element = playersLayer.querySelector(
+        `[data-id="${CSS.escape(drag.id)}"]`
       );
 
-      if (player) {
+      if (element) {
 
-        player.x = point.x;
+        element.style.left = `${player.x}%`;
+        element.style.top = `${player.y}%`;
 
-        player.y = point.y;
+      }
 
-        const element = playersLayer.querySelector(
-          `[data-id="${CSS.escape(drag.id)}"]`
-        );
 
-        if (element) {
+      // Update the ball visually.
+      if (drag.carriesBall) {
 
-          element.style.left = `${player.x}%`;
+        const ballElement = playersLayer.querySelector('.ball');
 
-          element.style.top = `${player.y}%`;
+        if (ballElement) {
+
+          ballElement.style.left = `${state.ball.x}%`;
+          ballElement.style.top = `${state.ball.y}%`;
 
         }
 
-        // Update polygons while their players move.
-        renderDrawings();
-
       }
 
-    }
-
-
-    // Move the ball.
-    else if (drag.type === 'ball') {
-
-      state.ball = point;
-
-      const ballElement = playersLayer.querySelector('.ball');
-
-      if (ballElement) {
-
-        ballElement.style.left = `${point.x}%`;
-
-        ballElement.style.top = `${point.y}%`;
-
-      }
 
       renderDrawings();
 
     }
 
-    return;
-
   }
 
+  // Move the ball.
+  else if (drag.type === 'ball') {
+
+    state.ball.x = point.x;
+    state.ball.y = point.y;
+    if (drag.carriesPlayer) {
+    dribblePath.push({
+      x: state.ball.x,
+      y: state.ball.y
+    });
+}
+
+    // If the ball is carrying a player, move that player too.
+    if (drag.carriesPlayer) {
+
+      const player = state.players.find(
+        p => p.id === drag.carriesPlayer
+      );
+
+      if (player) {
+
+        player.x = Math.max(0, Math.min(
+          100,
+          state.ball.x + drag.playerOffsetX
+        ));
+
+        player.y = Math.max(0, Math.min(
+          100,
+          state.ball.y + drag.playerOffsetY
+        ));
+
+        const playerElement = playersLayer.querySelector(
+          `[data-id="${CSS.escape(player.id)}"]`
+        );
+
+        if (playerElement) {
+          playerElement.style.left = `${player.x}%`;
+          playerElement.style.top = `${player.y}%`;
+        }
+
+      }
+
+    }
+
+    const ballElement = playersLayer.querySelector('.ball');
+
+    if (ballElement) {
+      ballElement.style.left = `${state.ball.x}%`;
+      ballElement.style.top = `${state.ball.y}%`;
+    }
+
+    renderDrawings();
+
+  }
 
   // Continue drawing a freehand path.
   if (currentPath) {
@@ -1659,7 +1789,12 @@ window.addEventListener('pointerup', () => {
 
   drag = null;
 
+  dribblePath = [];
+
   currentPath = null;
+
+  // Remove the temporary dribbling trail.
+  renderDrawings();
 
 });
 
@@ -1995,9 +2130,100 @@ function startAnimationTrail() {
 
 }
 
+// Which player is carrying the ball during this move? A player counts
+// if the ball is attached to them at the start AND still with them
+// at the target frame. Returns the player id, or null.
+function findBallCarrierId(ballStart, ballEnd, startMap, endMap) {
+
+  if (!ballStart || !ballEnd || !startMap || !endMap) return null;
+
+  let carrierId = null;
+  let closest = ATTACH_DISTANCE;
+
+  startMap.forEach((start, id) => {
+
+    const end = endMap.get(id);
+
+    if (!end) return;
+
+    const startDistance = pitchDistance(ballStart, start);
+
+    if (
+      startDistance <= closest &&
+      pitchDistance(ballEnd, end) <= ATTACH_DISTANCE
+    ) {
+      closest = startDistance;
+      carrierId = id;
+    }
+
+  });
+
+  return carrierId;
+
+}
+
+// Builds a wavy SVG path from (x1,y1) to (x2,y2) in drawing coordinates.
+// The wave is always shaped for the FULL length, so a partial path
+// (drawLength) lines up exactly with the full one.
+function buildSquigglePath(x1, y1, x2, y2, drawLength) {
+
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.hypot(dx, dy);
+
+  if (length < 1) return '';
+
+  const limit = drawLength === undefined
+    ? length
+    : Math.min(drawLength, length);
+
+  if (limit < 1) return '';
+
+  const ux = dx / length;
+  const uy = dy / length;
+  const nx = -uy;
+  const ny = ux;
+
+  const WAVELENGTH = 16;
+  const AMPLITUDE = 4.5;
+  const STEP = 2;
+  const TAPER = 22;
+
+  function pointAt(s) {
+
+    const envelope = Math.min(1, s / TAPER, (length - s) / TAPER);
+
+    const offset =
+      Math.sin((s / WAVELENGTH) * Math.PI * 2) * AMPLITUDE * envelope;
+
+    return [
+      x1 + ux * s + nx * offset,
+      y1 + uy * s + ny * offset
+    ];
+
+  }
+
+  let d = `M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+
+  for (let s = STEP; s < limit; s += STEP) {
+
+    const [px, py] = pointAt(s);
+
+    d += ` L ${px.toFixed(1)} ${py.toFixed(1)}`;
+
+  }
+
+  const [lastX, lastY] = pointAt(limit);
+
+  d += ` L ${lastX.toFixed(1)} ${lastY.toFixed(1)}`;
+
+  return d;
+
+}
+
 function drawMovementLines(svgNamespace) {
 
-  if (!SHOW_MOVEMENT_LINES || !state.animation) return;
+    if (!state.standardsMode || !SHOW_MOVEMENT_LINES || !state.animation) return;
 
   const lines = [];
 
@@ -2012,11 +2238,22 @@ function drawMovementLines(svgNamespace) {
       ? new Map(targetFrame.positions.map(position => [position.id, position]))
       : null;
 
+        // Is the ball being carried by a player during this move?
+    const carrierId = findBallCarrierId(
+      animationBallStart,
+      targetFrame ? targetFrame.ball : null,
+      animationTrail,
+      targetPositions
+    );
+
     state.players.forEach(player => {
 
       const start = animationTrail.get(player.id);
 
       if (!start) return;
+
+      // The carrier gets the squiggle instead of dashed lines.
+      if (player.id === carrierId) return;
 
       // Planned path: start to destination, visible before the player moves.
       if (targetPositions) {
@@ -2077,27 +2314,59 @@ function drawMovementLines(svgNamespace) {
           y2: ballTarget.y * 6.4,
           arrow: true,
           opacity: 0.45,
-          solid: true
+          solid: true,
+          squiggle: !!carrierId
+        
         });
 
       }
 
-      if (
+            if (
         Math.hypot(
           state.ball.x - animationBallStart.x,
           state.ball.y - animationBallStart.y
         ) >= MOVEMENT_THRESHOLD
       ) {
 
-        lines.push({
-          x1: animationBallStart.x * 10,
-          y1: animationBallStart.y * 6.4,
-          x2: state.ball.x * 10,
-          y2: state.ball.y * 6.4,
-          arrow: false,
-          opacity: 0.9,
-          solid: true
-        });
+        if (carrierId && ballTarget) {
+
+          // Solid part = the stretch of the planned path already covered.
+          const fullLength = Math.hypot(
+            (ballTarget.x - animationBallStart.x) * 10,
+            (ballTarget.y - animationBallStart.y) * 6.4
+          );
+
+          const coveredLength = Math.hypot(
+            (state.ball.x - animationBallStart.x) * 10,
+            (state.ball.y - animationBallStart.y) * 6.4
+          );
+
+          lines.push({
+            x1: animationBallStart.x * 10,
+            y1: animationBallStart.y * 6.4,
+            x2: ballTarget.x * 10,
+            y2: ballTarget.y * 6.4,
+            // Once fully covered, the arrowhead turns solid too.
+            arrow: coveredLength >= fullLength - 1,
+            opacity: 1,
+            solid: true,
+            squiggle: true,
+            drawUpTo: coveredLength
+          });
+
+        } else {
+
+          lines.push({
+            x1: animationBallStart.x * 10,
+            y1: animationBallStart.y * 6.4,
+            x2: state.ball.x * 10,
+            y2: state.ball.y * 6.4,
+            arrow: false,
+            opacity: 0.9,
+            solid: true
+          });
+
+        }
 
       }
 
@@ -2116,6 +2385,17 @@ function drawMovementLines(svgNamespace) {
 
     state.players.forEach(player => {
 
+      // Skip the player if they are attached to the ball.
+      if (
+        drag &&
+        (
+          (drag.type === 'player' && drag.carriesBall && drag.id === player.id) ||
+          (drag.type === 'ball' && drag.carriesPlayer === player.id)
+        )
+      ) {
+        return;
+      }
+
       const target = nextPositions.get(player.id);
 
       if (!target) return;
@@ -2133,8 +2413,16 @@ function drawMovementLines(svgNamespace) {
 
     });
 
-    // Ball: arrow to where it goes in the next frame.
+    // Don't draw a separate ball arrow when it is attached to a player.
+    const ballIsAttached =
+      drag &&
+      (
+        (drag.type === 'player' && drag.carriesBall) ||
+        (drag.type === 'ball' && drag.carriesPlayer)
+      );
+
     if (
+      !ballIsAttached &&
       nextFrame.ball &&
       Math.hypot(
         nextFrame.ball.x - state.ball.x,
@@ -2157,6 +2445,31 @@ function drawMovementLines(svgNamespace) {
   }
 
   lines.forEach(item => {
+
+        if (item.squiggle) {
+
+      const squiggle = document.createElementNS(svgNamespace, 'path');
+
+      squiggle.setAttribute(
+        'd',
+        buildSquigglePath(item.x1, item.y1, item.x2, item.y2, item.drawUpTo));
+
+      squiggle.setAttribute('fill', 'none');
+      squiggle.setAttribute('stroke', '#fff');
+      squiggle.setAttribute('stroke-width', '3');
+      squiggle.setAttribute('stroke-linecap', 'round');
+      squiggle.setAttribute('stroke-linejoin', 'round');
+      squiggle.setAttribute('opacity', item.opacity);
+
+      if (item.arrow) {
+        squiggle.setAttribute('marker-end', 'url(#arrowhead)');
+      }
+
+      drawingLayer.appendChild(squiggle);
+
+      return;
+
+    }
 
     const line = document.createElementNS(svgNamespace, 'line');
 
