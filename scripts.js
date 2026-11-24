@@ -265,6 +265,8 @@ let state = {
 
 let undoStack = [];
 
+let redoStack = [];
+
 let drag = null;
 
 let dribblePath = [];
@@ -1136,12 +1138,13 @@ if (playFullAnimationBtn) {
    5. UNDO SYSTEM
    ========================================================= */
 
-function snapshot() {
 
-  // Save the current frame before recording the undo state.
+function captureBoardState() {
+
+  // Save the current frame before recording the board state.
   saveActiveFrame();
 
-  undoStack.push(JSON.stringify({
+  return JSON.stringify({
 
     players: state.players,
 
@@ -1159,15 +1162,24 @@ function snapshot() {
 
     animation: state.animation
 
-  }));
-
-  if (undoStack.length > 40) {
-
-    undoStack.shift();
-
-  }
+  });
 
 }
+
+
+function snapshot() {
+
+  undoStack.push(captureBoardState());
+
+  if (undoStack.length > 40) {
+    undoStack.shift();
+  }
+
+  // A new edit makes the previous redo history invalid.
+  redoStack.length = 0;
+
+}
+
 
 
 /* =========================================================
@@ -2020,6 +2032,8 @@ pitch.addEventListener('pointerup', event => {
   if (!drawStart) return;
 
   const end = coordsFromEvent(event);
+
+  snapshot();
 
   state.drawings.push({
     type: drawStart.type,
@@ -3537,8 +3551,9 @@ document.getElementById('deletePlayerBtn').addEventListener(
 );
 
 
+
 /* =========================================================
-   25. UNDO
+   25. UNDO AND REDO
    ========================================================= */
 
 document.getElementById('undoBtn').addEventListener(
@@ -3546,22 +3561,42 @@ document.getElementById('undoBtn').addEventListener(
   undo
 );
 
+document.getElementById('redoBtn').addEventListener(
+  'click',
+  redo
+);
 
-function undo() {
 
-  if (isAnimating) return;
+// Keyboard shortcuts for Undo and Redo.
+document.addEventListener('keydown', (event) => {
 
-  const previousState = undoStack.pop();
+  // Don't trigger shortcuts while typing in an input or editable element.
+  const isTyping = event.target.closest(
+    'input, textarea, select, [contenteditable="true"]'
+  );
 
-  if (!previousState) {
+  if (isTyping || event.target.isContentEditable) return;
 
-    showToast('Nothing to undo');
+  // Ctrl + Z (or Cmd + Z) = Undo
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
 
-    return;
+    event.preventDefault();
+
+    if (event.shiftKey) {
+      // Ctrl/Cmd + Shift + Z = Redo
+      redo();
+    } else {
+      undo();
+    }
 
   }
 
-  const previous = JSON.parse(previousState);
+});
+
+
+function restoreBoardState(savedState) {
+
+  const previous = JSON.parse(savedState);
 
   state.players = previous.players;
 
@@ -3590,12 +3625,58 @@ function undo() {
 
   // Restore the selected frame's positions.
   if (state.animation) {
-
     applyAnimationFrame(state.animation.activeFrame);
-
   }
 
   render();
+
+}
+
+
+function undo() {
+
+  if (isAnimating) return;
+
+  const previousState = undoStack.pop();
+
+  if (!previousState) {
+    showToast('Nothing to undo');
+    return;
+  }
+
+  // Save the current state so Redo can restore it.
+  redoStack.push(captureBoardState());
+
+  if (redoStack.length > 40) {
+    redoStack.shift();
+  }
+
+  restoreBoardState(previousState);
+  showToast('Undo successful');
+
+}
+
+
+function redo() {
+
+  if (isAnimating) return;
+
+  const nextState = redoStack.pop();
+
+  if (!nextState) {
+    showToast('Nothing to redo');
+    return;
+  }
+
+  // Save the current state so Undo can reverse the Redo.
+  undoStack.push(captureBoardState());
+
+  if (undoStack.length > 40) {
+    undoStack.shift();
+  }
+
+  restoreBoardState(nextState);
+  showToast('Redo successful');
 
 }
 
