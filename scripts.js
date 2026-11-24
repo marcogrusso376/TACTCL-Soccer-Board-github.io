@@ -4626,9 +4626,10 @@ document.getElementById('exportBtn').addEventListener(
         return;
       }
 
-      if (exportChoice === null || exportChoice === '3') {
+      if (exportChoice === '3') {
         // Continue to the existing static PNG export below.
-      } else {
+      } 
+      if(exportChoice === null){return;} else {
         showToast('Invalid export selection');
         return;
       }
