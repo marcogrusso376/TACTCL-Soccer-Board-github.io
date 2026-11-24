@@ -898,6 +898,22 @@ button {
   cursor: pointer;
 }
 
+/* Side-by-side team and goalkeeper color controls. */
+.team-color-row {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 8px;
+  align-items: end;
+}
+
+.team-color-field {
+  min-width: 0;
+}
+
+.team-color-row[hidden] {
+  display: none;
+}
+
 /* Highlight players currently selected for a group. */
 .player.group-selected {
   outline: 3px solid #ffffff;

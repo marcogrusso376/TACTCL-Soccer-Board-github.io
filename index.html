@@ -113,103 +113,103 @@
 
         </div>
 
-        <!-- Home jersey color -->
-        <div id="homeColorSetting">
+        <!-- HOME TEAM COLORS -->
+        <div class="team-color-row" id="homeColorRow">
 
-          <label class="field-label" for="homeTeamColor">
-            Home jersey color
-          </label>
+          <div id="homeColorSetting" class="team-color-field">
 
-          <input
-            class="color-control"
-            type="color"
-            id="homeTeamColor"
-            value="#265ebd"
-          >
+            <label class="field-label" for="homeTeamColor">
+              Jersey color
+            </label>
 
-        </div>
+            <input
+              class="color-control"
+              type="color"
+              id="homeTeamColor"
+              value="#265ebd"
+            >
 
+          </div>
 
-        <!-- Away jersey color -->
-        <div id="awayColorSetting" hidden>
+          <div id="homeGoalkeeperColorSetting" class="team-color-field">
 
-          <label class="field-label" for="awayTeamColor">
-            Away jersey color
-          </label>
+            <label class="field-label" for="homeGoalkeeperColor">
+              GK color
+            </label>
 
-          <input
-            class="color-control"
-            type="color"
-            id="awayTeamColor"
-            value="#ef0808"
-          >
+            <input
+              class="color-control"
+              type="color"
+              id="homeGoalkeeperColor"
+              value="#e9c840"
+            >
 
-        </div>
-
-        <!-- Home goalkeeper color -->
-        <div id="homeGoalkeeperColorSetting">
-
-          <label class="field-label" for="homeGoalkeeperColor">
-            Home goalkeeper color
-          </label>
-
-          <input
-            class="color-control"
-            type="color"
-            id="homeGoalkeeperColor"
-            value="#e9c840"
-          >
+          </div>
 
         </div>
 
-        <!-- Away goalkeeper color -->
-        <div id="awayGoalkeeperColorSetting" hidden>
 
-          <label class="field-label" for="awayGoalkeeperColor">
-            Away goalkeeper color
-          </label>
+        <!-- AWAY TEAM COLORS -->
+        <div class="team-color-row" id="awayColorRow" hidden>
 
-          <input
-            class="color-control"
-            type="color"
-            id="awayGoalkeeperColor"
-            value="#20a879"
-          >
+          <div id="awayColorSetting" class="team-color-field">
+
+            <label class="field-label" for="awayTeamColor">
+              Jersey color
+            </label>
+
+            <input
+              class="color-control"
+              type="color"
+              id="awayTeamColor"
+              value="#ef0808"
+            >
+
+          </div>
+
+          <div id="awayGoalkeeperColorSetting" class="team-color-field">
+
+            <label class="field-label" for="awayGoalkeeperColor">
+              GK color
+            </label>
+
+            <input
+              class="color-control"
+              type="color"
+              id="awayGoalkeeperColor"
+              value="#20a879"
+            >
+
+          </div>
 
         </div>
 
         <!-- Home team formation -->
-        <label class="field-label" for="formationSelect">
-          Home formation
-        </label>
-
-        <select class="select-control" id="formationSelect">
-
-          <option value="4-3-3">4-3-3</option>
-          <option value="4-4-2">4-4-2</option>
-          <option value="4-2-3-1">4-2-3-1</option>
-          <option value="3-5-2">3-5-2</option>
-          <option value="3-4-3">3-4-3</option>
-          <option value="5-3-2">5-3-2</option>
-
-        </select>
+        <div id="homeFormationSetting">
+          <label class="field-label">Home formation</label>
+          <select class="select-control" id="formationSelect">
+            <option value="4-3-3">4-3-3</option>
+            <option value="4-4-2">4-4-2</option>
+            <option value="4-2-3-1">4-2-3-1</option>
+            <option value="3-5-2">3-5-2</option>
+            <option value="3-4-3">3-4-3</option>
+            <option value="5-3-2">5-3-2</option>
+          </select>
+        </div>
 
 
         <!-- Away team formation -->
-        <label class="field-label" for="awayFormationSelect">
-          Away formation
-        </label>
-
-        <select class="select-control" id="awayFormationSelect">
-
-          <option value="4-3-3">4-3-3</option>
-          <option value="4-4-2">4-4-2</option>
-          <option value="4-2-3-1">4-2-3-1</option>
-          <option value="3-5-2">3-5-2</option>
-          <option value="3-4-3">3-4-3</option>
-          <option value="5-3-2">5-3-2</option>
-
-        </select>
+        <div id="awayFormationSetting">
+          <label class="field-label">Away formation</label>
+          <select class="select-control" id="awayFormationSelect">
+            <option value="4-3-3">4-3-3</option>
+            <option value="4-4-2">4-4-2</option>
+            <option value="4-2-3-1">4-2-3-1</option>
+            <option value="3-5-2">3-5-2</option>
+            <option value="3-4-3">3-4-3</option>
+            <option value="5-3-2">5-3-2</option>
+          </select>
+        </div>
 
 
         <!-- Reset field -->

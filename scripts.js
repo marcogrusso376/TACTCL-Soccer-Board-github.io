@@ -302,10 +302,21 @@ function applyTeamColors() {
 // Show only the active team's jersey color setting.
 function updateTeamColorVisibility() {
 
-  document.getElementById('homeColorSetting').hidden =
+  document.getElementById('homeColorRow').hidden =
     state.activeTeam !== 'home';
 
-  document.getElementById('awayColorSetting').hidden =
+  document.getElementById('awayColorRow').hidden =
+    state.activeTeam !== 'away';
+
+}
+
+// Show only the active team's formation setting.
+function updateFormationVisibility() {
+
+  document.getElementById('homeFormationSetting').hidden =
+    state.activeTeam !== 'home';
+
+  document.getElementById('awayFormationSetting').hidden =
     state.activeTeam !== 'away';
 
 }
@@ -1317,6 +1328,7 @@ function render() {
   //Update the team nd goalkeeper color option visibility.
   updateTeamColorVisibility();
   updateGoalkeeperColorVisibility();
+  updateFormationVisibility
 
   // Update the animation buttons.
   updateAnimationControls();
@@ -2975,7 +2987,7 @@ if (finishGroupBtn) {
       player => state.groupSelection.includes(player.id)
     );
 
-    const selectedPlayers = expandGroupSelection(initiallySelected);
+    const selectedPlayers = initiallySelected;
 
     if (selectedPlayers.length < 3) {
 
@@ -3252,6 +3264,7 @@ document.querySelectorAll('.team-tab').forEach(button => {
 
     updateTeamColorVisibility();
     updateGoalkeeperColorVisibility();
+    updateFormationVisibility();
 
   });
 
@@ -4583,6 +4596,11 @@ document.getElementById('exportBtn').addEventListener(
 initialize();
 
 loadSaved();
+
+// Apply the correct visibility settings on startup.
+updateFormationVisibility();
+updateTeamColorVisibility();
+updateGoalkeeperColorVisibility();
 
 // CONFIRM TACTICAL ZONE
 document.getElementById('confirmZoneButton').addEventListener('click', () => {
