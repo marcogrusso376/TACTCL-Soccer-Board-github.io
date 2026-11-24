@@ -120,7 +120,7 @@ const pitch = document.getElementById('pitch');
 const pitchStage = document.querySelector('.pitch-stage');
 
 const fieldOrientationSelect =
-  document.getElementById('fieldOrientation');
+  document.getElementById('fieldOrientationToggle');
 
 const playersLayer = document.getElementById('playersLayer');
 const drawingLayer = document.getElementById('drawingLayer');
@@ -149,7 +149,13 @@ function applyFieldOrientation() {
     state.fieldOrientation === 'vertical'
   );
 
-  fieldOrientationSelect.value = state.fieldOrientation;
+  fieldOrientationToggle.checked =
+    state.fieldOrientation === 'vertical';
+
+  document.getElementById('fieldOrientationLabel').textContent =
+    state.fieldOrientation === 'vertical'
+      ? 'Vertical field'
+      : 'Horizontal field';
 
 }
 
@@ -361,7 +367,7 @@ document.getElementById('awayGoalkeeperColor').addEventListener('change', event 
   applyGoalkeeperColors();
 });
 
-fieldOrientationSelect.addEventListener('change', event => {
+fieldOrientationToggle.addEventListener('change', event => {
 
   if (isAnimating) {
     applyFieldOrientation();
@@ -370,7 +376,9 @@ fieldOrientationSelect.addEventListener('change', event => {
 
   snapshot();
 
-  state.fieldOrientation = event.target.value;
+  state.fieldOrientation = event.target.checked
+    ? 'vertical'
+    : 'horizontal';
 
   applyFieldOrientation();
 
@@ -1640,15 +1648,19 @@ pitch.addEventListener('pointermove', event => {
 
   if (isAnimating) return;
 
-  // Only continue if something is currently being dragged.
-  if (!drag) return;
-  console.log("DRAGGING:", drag);
+  // Continue if either an object is being dragged
+  // or a freehand drawing is currently in progress.
+  if (!drag && !currentPath) return;
+
+  if (drag) {
+    console.log("DRAGGING:", drag);
+  }
 
   // Get the current pointer position on the pitch.
   const point = coordsFromEvent(event);
 
   // Move a player.
-  if (drag.type === 'player') {
+  if (drag && drag.type === 'player') {
 
     const player = state.players.find(
       p => p.id === drag.id
@@ -1723,7 +1735,7 @@ pitch.addEventListener('pointermove', event => {
   }
 
   // Move the ball.
-  else if (drag.type === 'ball') {
+  else if (drag && drag.type === 'ball') {
 
     state.ball.x = point.x;
     state.ball.y = point.y;
@@ -1954,6 +1966,9 @@ pitch.addEventListener('pointerdown', event => {
     };
 
     state.drawings.push(currentPath);
+
+    // Keep tracking the mouse while drawing.
+    pitch.setPointerCapture(event.pointerId);
 
     return;
 
@@ -3676,7 +3691,7 @@ document.getElementById('flipBtn').addEventListener(
    28. RENAME THE TACTIC
    ========================================================= */
 
-document.getElementById('renameBtn').addEventListener(
+document.getElementById('boardName').addEventListener(
   'click',
   () => {
 

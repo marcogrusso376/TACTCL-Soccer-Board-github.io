@@ -45,15 +45,15 @@
 
       <span class="status-dot"></span>
 
-      <span id="boardName">Untitled tactic</span>
+      <button type="button" id="boardName" class="board-name-button">
+        Untitled tactic
+      </button>
 
     </div>
 
 
     <!-- Main actions -->
     <div class="top-actions">
-
-      <button class="btn btn-quiet" id="renameBtn">Rename Board</button>
 
       <button class="btn btn-quiet" id="exportBtn">Export</button>
 
@@ -211,12 +211,6 @@
           </select>
         </div>
 
-
-        <!-- Reset field -->
-        <button class="wide-button" id="resetFieldBtn">
-          Reset field
-        </button>
-
       </section>
 
 
@@ -290,6 +284,15 @@
           </button>
 
         </div>
+
+        <!-- FIELD ORIENTATION TOGGLE -->
+        <label class="switch-row" for="fieldOrientationToggle">
+          <span id="fieldOrientationLabel">Horizontal field</span>
+          <span class="switch">
+            <input type="checkbox" id="fieldOrientationToggle">
+            <span class="switch-slider"></span>
+          </span>
+        </label>
 
         <!-- DIAGRAM STANDARDS TOGGLE -->
         <label class="switch-row" for="standardsToggle">
@@ -548,13 +551,14 @@
             ⇄ Flip board
           </button>
 
-          <select class="btn" id="fieldOrientation">
-            <option value="horizontal">Horizontal</option>
-            <option value="vertical">Vertical</option>
-          </select>
+          <!-- Reset field -->
+          <button class="btn" id="resetFieldBtn">
+            Reset field
+          </button>
 
+          <!-- Clear Field -->
           <button class="btn" id="clearBtn">
-            Clear board
+            Clear field
           </button>
 
         </div>

@@ -88,6 +88,21 @@ button {
   font-size: 19px;
 }
 
+.board-name-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.board-name-button:hover {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
 .board-title {
   display: flex;
   align-items: center;
@@ -603,6 +618,13 @@ button {
 
 .players-layer {
   z-index: 4;
+  pointer-events: none;
+}
+
+/* Keep individual players and the ball interactive. */
+.player,
+.ball {
+  pointer-events: auto;
 }
 
 /* ==================== PLAYER MARKERS ==================== */
