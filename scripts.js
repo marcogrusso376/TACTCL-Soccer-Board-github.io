@@ -1662,7 +1662,7 @@ pitch.addEventListener('pointermove', event => {
 
   // Continue if either an object is being dragged
   // or a freehand drawing is currently in progress.
-  if (!drag && !currentPath) return;
+  if (!drag && !currentPath && !drawStart && !zoneStart) return;
 
   if (drag) {
     console.log("DRAGGING:", drag);
@@ -1670,6 +1670,28 @@ pitch.addEventListener('pointermove', event => {
 
   // Get the current pointer position on the pitch.
   const point = coordsFromEvent(event);
+
+  // Update the live arrow or line preview.
+  if (drawStart) {
+
+    drawStart.x2 = point.x * 10;
+    drawStart.y2 = point.y * 6.4;
+
+    drawStart.style =
+      state.standardsMode && drawStart.type === 'arrow'
+        ? state.arrowStyle
+        : null;
+
+    renderDrawings();
+
+  }
+
+// Update the live zone preview.
+if (zoneStart) {
+  zoneStart.end = point;
+
+  renderDrawings();
+}
 
   // Move a player.
   if (drag && drag.type === 'player') {
@@ -1950,7 +1972,7 @@ pitch.addEventListener('pointerdown', event => {
       type: state.tool
 
     };
-
+    pitch.setPointerCapture(event.pointerId);
     return;
 
   }
@@ -2679,7 +2701,20 @@ function renderDrawings() {
     drawMovementLines(svgNamespace);
 
     // Draw arrows, lines, and freehand drawings.
-    state.drawings.forEach(drawing => {
+    [
+      ...state.drawings,
+
+      ...(drawStart && Number.isFinite(drawStart.x2) ? [{
+        type: drawStart.type,
+        style: drawStart.style,
+        x1: drawStart.x,
+        y1: drawStart.y,
+        x2: drawStart.x2,
+        y2: drawStart.y2,
+        color: '#fff'
+      }] : [])
+
+    ].forEach(drawing => {
 
     let element;
 
