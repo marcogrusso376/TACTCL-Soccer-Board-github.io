@@ -1,4 +1,3 @@
-
 /* =========================================================
    TACTCL BOARD — JAVASCRIPT
 
@@ -133,9 +132,14 @@ const addFrameBtn = document.getElementById('addFrameBtn');
 const deleteFrameBtn = document.getElementById('deleteFrameBtn');
 const playNextFrameBtn = document.getElementById('playNextFrameBtn');
 const playFullAnimationBtn = document.getElementById('playFullAnimationBtn');
+const animationSpeedSelect = document.getElementById('animationSpeed');
 
 const MAX_ANIMATION_FRAMES = 10;
 const FRAME_ANIMATION_DURATION = 1000;
+
+function getAnimationSpeed() {
+  return Number(animationSpeedSelect.value) || 1;
+}
 
 
 /* =========================================================
@@ -229,10 +233,9 @@ let state = {
     away: 'rgb(120, 32, 168)'
   },
 
-  ball: {
-    x: 50,
-    y: 50
-  },
+  balls: [
+    { id: 'ball-1', x: 50, y: 50 }
+  ],
 
   drawings: [],
 
@@ -437,6 +440,67 @@ function deepCopy(value) {
 }
 
 
+// ---------- Multiple balls: helpers ----------
+
+let ballCounter = 0;
+
+// Every ball gets its own permanent ID.
+function makeBallId() {
+
+  ballCounter += 1;
+
+  return `ball-${Date.now()}-${ballCounter}-${Math.random().toString(16).slice(2, 6)}`;
+
+}
+
+// Create a ball object (it is not added to the board yet).
+function createBall(x, y) {
+
+  return { id: makeBallId(), x: x, y: y };
+
+}
+
+// Find the DOM element for one specific ball.
+function getBallElement(id) {
+
+  return playersLayer.querySelector(
+    `.ball[data-id="${CSS.escape(id)}"]`
+  );
+
+}
+
+// Turn saved data into a clean list of balls.
+// Handles the new format (balls: [...]) and the old
+// single-ball format (ball: { x, y }), so older saves still load.
+function normalizeBalls(data) {
+
+  const isPoint = b =>
+    b && Number.isFinite(b.x) && Number.isFinite(b.y);
+
+  // New format: an array of balls (it may be empty).
+  if (data && Array.isArray(data.balls)) {
+
+    return data.balls.filter(isPoint).map(b => ({
+      id: (typeof b.id === 'string' && b.id) ? b.id : makeBallId(),
+      x: b.x,
+      y: b.y
+    }));
+
+  }
+
+  // Old format: one ball.
+  if (data && isPoint(data.ball)) {
+
+    return [ createBall(data.ball.x, data.ball.y) ];
+
+  }
+
+  // No ball data at all: start with one in the centre.
+  return [ createBall(50, 50) ];
+
+}
+
+
 // Capture the current board positions.
 /*
    Each frame stores:
@@ -467,7 +531,7 @@ function captureFrame() {
       y: player.y
     })),
 
-    ball: deepCopy(state.ball),
+    balls: deepCopy(state.balls),
 
     drawings: deepCopy(state.drawings),
 
@@ -498,7 +562,7 @@ function saveActiveFrame() {
     y: player.y
   }));
 
-  frame.ball = deepCopy(state.ball);
+  frame.balls = deepCopy(state.balls);
 
   frame.drawings = deepCopy(state.drawings);
 
@@ -540,9 +604,9 @@ function applyAnimationFrame(frameIndex) {
 
   });
 
-  if (frame.ball) {
+  if (Array.isArray(frame.balls)) {
 
-    state.ball = deepCopy(frame.ball);
+    state.balls = deepCopy(frame.balls);
 
   }
 
@@ -593,6 +657,48 @@ function removePlayerFromAnimationFrames(playerId) {
 
     frame.positions = frame.positions.filter(
       position => position.id !== playerId
+    );
+
+  });
+
+}
+
+
+// Add a newly created ball to every frame.
+
+function addBallToAnimationFrames(ball) {
+
+  if (!state.animation) return;
+
+  state.animation.frames.forEach(frame => {
+
+    if (!Array.isArray(frame.balls)) frame.balls = [];
+
+    frame.balls.push({
+
+      id: ball.id,
+
+      x: ball.x,
+
+      y: ball.y
+
+    });
+
+  });
+
+}
+
+
+// Remove a deleted ball from every frame.
+
+function removeBallFromAnimationFrames(ballId) {
+
+  if (!state.animation) return;
+
+  state.animation.frames.forEach(frame => {
+
+    frame.balls = (frame.balls || []).filter(
+      ball => ball.id !== ballId
     );
 
   });
@@ -895,9 +1001,20 @@ function animateToFrame(targetIndex) {
 
     animationTargetIndex = targetIndex;
 
-    const startBall = deepCopy(state.ball);
+    // Look up every ball's start and end position by its ID.
+    const startBallMap = new Map(
+      state.balls.map(ball => [
+        ball.id,
+        { x: ball.x, y: ball.y }
+      ])
+    );
 
-    const endBall = deepCopy(targetFrame.ball);
+    const endBallMap = new Map(
+      (targetFrame.balls || []).map(ball => [
+        ball.id,
+        ball
+      ])
+    );
 
     let startTime = performance.now();
 
@@ -916,7 +1033,7 @@ function animateToFrame(targetIndex) {
       const elapsed = currentTime - startTime;
 
       const progress = Math.min(
-        elapsed / FRAME_ANIMATION_DURATION,
+        elapsed / (FRAME_ANIMATION_DURATION / getAnimationSpeed()),
         1
       );
 
@@ -957,29 +1074,35 @@ function animateToFrame(targetIndex) {
       });
 
 
-      // Animate the ball.
+      // Animate every ball independently.
 
-      state.ball = {
+      state.balls.forEach(ball => {
 
-        x: startBall.x + (
-          endBall.x - startBall.x
-        ) * easedProgress,
+        const start = startBallMap.get(ball.id);
 
-        y: startBall.y + (
-          endBall.y - startBall.y
-        ) * easedProgress
+        const end = endBallMap.get(ball.id);
 
-      };
+        if (!start || !end) return;
 
-      const ballElement = playersLayer.querySelector('.ball');
+        ball.x = start.x + (
+          end.x - start.x
+        ) * easedProgress;
 
-      if (ballElement) {
+        ball.y = start.y + (
+          end.y - start.y
+        ) * easedProgress;
 
-        ballElement.style.left = `${state.ball.x}%`;
+        const ballElement = getBallElement(ball.id);
 
-        ballElement.style.top = `${state.ball.y}%`;
+        if (ballElement) {
 
-      }
+          ballElement.style.left = `${ball.x}%`;
+
+          ballElement.style.top = `${ball.y}%`;
+
+        }
+
+      });
 
 
       // Keep tactical polygons attached to their players.
@@ -1016,10 +1139,16 @@ function animateToFrame(targetIndex) {
         ) >= MOVEMENT_THRESHOLD;
 
       }) ||
-      Math.hypot(
-        endBall.x - state.ball.x,
-        endBall.y - state.ball.y
-      ) >= MOVEMENT_THRESHOLD;
+      state.balls.some(ball => {
+
+        const end = endBallMap.get(ball.id);
+
+        return end && Math.hypot(
+          end.x - ball.x,
+          end.y - ball.y
+        ) >= MOVEMENT_THRESHOLD;
+
+      });
 
     if (SHOW_MOVEMENT_LINES && PREVIEW_HOLD_MS > 0 && hasMovement) {
 
@@ -1032,7 +1161,7 @@ function animateToFrame(targetIndex) {
 
         requestAnimationFrame(animate);
 
-      }, PREVIEW_HOLD_MS);
+      }, PREVIEW_HOLD_MS / getAnimationSpeed());
 
     } else {
 
@@ -1152,7 +1281,7 @@ function captureBoardState() {
 
     fieldOrientation: state.fieldOrientation,
 
-    ball: state.ball,
+    balls: state.balls,
 
     drawings: state.drawings,
 
@@ -1219,9 +1348,7 @@ function makeTeam(team, formation = '4-3-3') {
 
     number: i + 1,
 
-    name: team === 'home'
-      ? `Home ${i + 1}`
-      : `Away ${i + 1}`,
+    name: '',
 
     role: i === 0 ? 'goalkeeper' : 'outfield',
 
@@ -1248,13 +1375,7 @@ function initialize() {
 
   ];
 
-  state.ball = {
-
-    x: 50,
-
-    y: 50
-
-  };
+  state.balls = [ createBall(50, 50) ];
 
   render();
 
@@ -1274,7 +1395,7 @@ function render() {
   if (!isAnimating) {
     animationTrail = null;
     animationTargetIndex = null;
-    animationBallStart = null;
+    animationBallsStart = null;
   }
 
   // Keep the active frame synchronized with the board.
@@ -1309,20 +1430,26 @@ function render() {
 
   renderPlayerLabels();
 
-  // Create the soccer ball.
-  const ball = document.createElement('div');
+  // Create one soccer ball element for every ball in the array.
+  state.balls.forEach(ball => {
 
-  ball.className = 'ball';
+    const ballEl = document.createElement('div');
 
-  ball.style.left = `${state.ball.x}%`;
+    ballEl.className = 'ball';
 
-  ball.style.top = `${state.ball.y}%`;
+    ballEl.dataset.id = ball.id;
 
-  ball.textContent = '⚽';
+    ballEl.style.left = `${ball.x}%`;
 
-  ball.addEventListener('pointerdown', onBallPointerDown);
+    ballEl.style.top = `${ball.y}%`;
 
-  playersLayer.appendChild(ball);
+    ballEl.textContent = '⚽';
+
+    ballEl.addEventListener('pointerdown', onBallPointerDown);
+
+    playersLayer.appendChild(ballEl);
+
+  });
 
 
   // Update board drawings and sidebar.
@@ -1429,7 +1556,7 @@ function coordsFromEvent(event) {
 }
 // Distance at which the ball and a player count as attached
 // (in % of pitch width).
-const ATTACH_DISTANCE = 4.5;
+const ATTACH_DISTANCE = 2.5;
 
 // The pitch is 1060:640, so one y-unit is shorter than one x-unit.
 const PITCH_ASPECT_Y = 640 / 1060;
@@ -1521,12 +1648,28 @@ function onPlayerPointerDown(event) {
   state.activeTeam = player.team;
 
 
-  // Check whether the ball is close enough to this player
-  // to be considered attached.
-  // Holding Shift drags the player alone, even with the ball in range.
-  const ballIsAttached =
-    !event.shiftKey &&
-    pitchDistance(state.ball, player) <= ATTACH_DISTANCE;
+  // Find the closest ball that is close enough to be attached.
+  // Holding Shift drags the player alone, even with a ball in range.
+  let attachedBall = null;
+
+  if (!event.shiftKey) {
+
+    let closest = ATTACH_DISTANCE;
+
+    state.balls.forEach(ball => {
+
+      const distance = pitchDistance(ball, player);
+
+      if (distance <= closest) {
+        closest = distance;
+        attachedBall = ball;
+      }
+
+    });
+
+  }
+
+  const ballIsAttached = attachedBall !== null;
 
 
   drag = {
@@ -1537,17 +1680,20 @@ function onPlayerPointerDown(event) {
 
     carriesBall: ballIsAttached,
 
-    // Preserve the ball's position relative to the player.
-    ballOffsetX: state.ball.x - player.x,
+    // Which ball is being carried.
+    carriedBallId: attachedBall ? attachedBall.id : null,
 
-    ballOffsetY: state.ball.y - player.y
+    // Preserve the ball's position relative to the player.
+    ballOffsetX: attachedBall ? attachedBall.x - player.x : 0,
+
+    ballOffsetY: attachedBall ? attachedBall.y - player.y : 0
 
   };
 
 
   // Start recording the dribbling path.
-  dribblePath = ballIsAttached
-    ? [{ x: state.ball.x, y: state.ball.y }]
+  dribblePath = attachedBall
+    ? [{ x: attachedBall.x, y: attachedBall.y }]
     : [];
 
 
@@ -1575,9 +1721,11 @@ function onPlayerPointerDown(event) {
 
 function onBallPointerDown(event) {
 
-  console.log("BALL CLICKED - ACTIVE TOOL:", state.tool);
-
   if (isAnimating) return;
+
+  // Add → Ball: let the click fall through to the pitch,
+  // so it places another ball (even on top of an existing one).
+  if (state.tool === 'ball') return;
 
   event.stopPropagation();
 
@@ -1585,19 +1733,27 @@ function onBallPointerDown(event) {
     return;
   }
 
-  // Eraser resets the ball.
+  // Find which ball was clicked.
+  const id = event.currentTarget.dataset.id;
+
+  const ball = state.balls.find(b => b.id === id);
+
+  if (!ball) return;
+
+  // Eraser: remove only the ball that was clicked.
   if (state.tool === 'eraser') {
 
     snapshot();
 
-    state.ball = {
-      x: 50,
-      y: 50
-    };
+    state.balls = state.balls.filter(b => b.id !== id);
+
+    // Remove this ball from every animation frame too.
+    removeBallFromAnimationFrames(id);
 
     render();
 
     return;
+
   }
 
   // Only Select and Player tools can drag the ball.
@@ -1607,13 +1763,13 @@ function onBallPointerDown(event) {
 
   snapshot();
 
-  // Find the closest player to the ball.
+  // Find the closest player to this ball.
   let closestPlayer = null;
   let closestDistance = ATTACH_DISTANCE;
 
   state.players.forEach(player => {
 
-    const distance = pitchDistance(player, state.ball);
+    const distance = pitchDistance(player, ball);
 
     // Holding Shift drags the ball alone, even with a player in range.
     if (!event.shiftKey && distance <= closestDistance) {
@@ -1623,26 +1779,29 @@ function onBallPointerDown(event) {
 
   });
 
-  // Start dragging the ball.
+  // Start dragging this ball.
   drag = {
     type: 'ball',
+
+    // Which ball is being dragged.
+    id: ball.id,
 
     // Attach the closest player if they are within range.
     carriesPlayer: closestPlayer ? closestPlayer.id : null,
 
     // Remember the player's position relative to the ball.
     playerOffsetX: closestPlayer
-      ? closestPlayer.x - state.ball.x
+      ? closestPlayer.x - ball.x
       : 0,
 
     playerOffsetY: closestPlayer
-      ? closestPlayer.y - state.ball.y
+      ? closestPlayer.y - ball.y
       : 0
   };
 
   // Start the dribbling trail at the ball's current position.
   dribblePath = closestPlayer
-    ? [{ x: state.ball.x, y: state.ball.y }]
+    ? [{ x: ball.x, y: ball.y }]
     : [];
 
   event.currentTarget.setPointerCapture(event.pointerId);
@@ -1678,7 +1837,7 @@ pitch.addEventListener('pointermove', event => {
     drawStart.y2 = point.y * 6.4;
 
     drawStart.style =
-      state.standardsMode && drawStart.type === 'arrow'
+      drawStart.type === 'arrow'
         ? state.arrowStyle
         : null;
 
@@ -1709,27 +1868,31 @@ if (zoneStart) {
       player.y = point.y;
 
 
-      // If the player is carrying the ball, move it too.
+      // If the player is carrying a ball, move that ball too.
       if (drag.carriesBall) {
 
-        state.ball = {
+        const carried = state.balls.find(
+          b => b.id === drag.carriedBallId
+        );
 
-          x: Math.max(0, Math.min(
+        if (carried) {
+
+          carried.x = Math.max(0, Math.min(
             100,
             player.x + drag.ballOffsetX
-          )),
+          ));
 
-          y: Math.max(0, Math.min(
+          carried.y = Math.max(0, Math.min(
             100,
             player.y + drag.ballOffsetY
-          ))
+          ));
 
-        };
+          dribblePath.push({
+            x: carried.x,
+            y: carried.y
+          });
 
-        dribblePath.push({
-          x: state.ball.x,
-          y: state.ball.y
-        });
+        }
 
       }
 
@@ -1747,15 +1910,21 @@ if (zoneStart) {
       }
 
 
-      // Update the ball visually.
+      // Update the carried ball visually.
       if (drag.carriesBall) {
 
-        const ballElement = playersLayer.querySelector('.ball');
+        const carried = state.balls.find(
+          b => b.id === drag.carriedBallId
+        );
+
+        const ballElement = carried
+          ? getBallElement(carried.id)
+          : null;
 
         if (ballElement) {
 
-          ballElement.style.left = `${state.ball.x}%`;
-          ballElement.style.top = `${state.ball.y}%`;
+          ballElement.style.left = `${carried.x}%`;
+          ballElement.style.top = `${carried.y}%`;
 
         }
 
@@ -1768,58 +1937,65 @@ if (zoneStart) {
 
   }
 
-  // Move the ball.
+  // Move one ball.
   else if (drag && drag.type === 'ball') {
 
-    state.ball.x = point.x;
-    state.ball.y = point.y;
-    if (drag.carriesPlayer) {
-    dribblePath.push({
-      x: state.ball.x,
-      y: state.ball.y
-    });
-}
+    const ball = state.balls.find(b => b.id === drag.id);
 
-    // If the ball is carrying a player, move that player too.
-    if (drag.carriesPlayer) {
+    if (ball) {
 
-      const player = state.players.find(
-        p => p.id === drag.carriesPlayer
-      );
+      ball.x = point.x;
+      ball.y = point.y;
 
-      if (player) {
+      if (drag.carriesPlayer) {
+        dribblePath.push({
+          x: ball.x,
+          y: ball.y
+        });
+      }
 
-        player.x = Math.max(0, Math.min(
-          100,
-          state.ball.x + drag.playerOffsetX
-        ));
+      // If the ball is carrying a player, move that player too.
+      if (drag.carriesPlayer) {
 
-        player.y = Math.max(0, Math.min(
-          100,
-          state.ball.y + drag.playerOffsetY
-        ));
-
-        const playerElement = playersLayer.querySelector(
-          `[data-id="${CSS.escape(player.id)}"]`
+        const player = state.players.find(
+          p => p.id === drag.carriesPlayer
         );
 
-        if (playerElement) {
-          playerElement.style.left = `${player.x}%`;
-          playerElement.style.top = `${player.y}%`;
+        if (player) {
+
+          player.x = Math.max(0, Math.min(
+            100,
+            ball.x + drag.playerOffsetX
+          ));
+
+          player.y = Math.max(0, Math.min(
+            100,
+            ball.y + drag.playerOffsetY
+          ));
+
+          const playerElement = playersLayer.querySelector(
+            `[data-id="${CSS.escape(player.id)}"]`
+          );
+
+          if (playerElement) {
+            playerElement.style.left = `${player.x}%`;
+            playerElement.style.top = `${player.y}%`;
+          }
+
         }
 
       }
 
+      const ballElement = getBallElement(ball.id);
+
+      if (ballElement) {
+        ballElement.style.left = `${ball.x}%`;
+        ballElement.style.top = `${ball.y}%`;
+      }
+
+      renderDrawings();
+
     }
-
-    const ballElement = playersLayer.querySelector('.ball');
-
-    if (ballElement) {
-      ballElement.style.left = `${state.ball.x}%`;
-      ballElement.style.top = `${state.ball.y}%`;
-    }
-
-    renderDrawings();
 
   }
 
@@ -1928,12 +2104,17 @@ pitch.addEventListener('pointerdown', event => {
   }
 
 
-  // Move the ball by clicking the pitch.
+  // Add a NEW ball every time the pitch is clicked.
   if (state.tool === 'ball') {
 
     snapshot();
 
-    state.ball = point;
+    const newBall = createBall(point.x, point.y);
+
+    state.balls.push(newBall);
+
+    // Make sure this ball exists in every animation frame.
+    addBallToAnimationFrames(newBall);
 
     render();
 
@@ -1942,16 +2123,96 @@ pitch.addEventListener('pointerdown', event => {
   }
 
 
-  // Remove the most recent drawing.
+  // Erase the drawing closest to the cursor.
   if (state.tool === 'eraser') {
 
-    if (state.drawings.length > 0) {
+    const tolerance = 12;
+
+    let closestIndex = -1;
+    let closestDistance = Infinity;
+
+    state.drawings.forEach((drawing, index) => {
+
+      let distance = Infinity;
+
+      if (drawing.type === 'freehand') {
+
+        for (let i = 0; i < drawing.points.length - 1; i++) {
+
+          const [x1, y1] = drawing.points[i];
+          const [x2, y2] = drawing.points[i + 1];
+
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+
+          const lengthSquared = dx * dx + dy * dy;
+
+          const t = lengthSquared === 0
+            ? 0
+            : Math.max(0, Math.min(1,
+                ((point.x * 10 - x1) * dx +
+                (point.y * 6.4 - y1) * dy) / lengthSquared
+              ));
+
+          const nearestX = x1 + t * dx;
+          const nearestY = y1 + t * dy;
+
+          const segmentDistance = Math.hypot(
+            point.x * 10 - nearestX,
+            point.y * 6.4 - nearestY
+          );
+
+          distance = Math.min(distance, segmentDistance);
+
+        }
+
+      } else {
+
+        const x1 = drawing.x1;
+        const y1 = drawing.y1;
+        const x2 = drawing.x2;
+        const y2 = drawing.y2;
+
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+
+        const lengthSquared = dx * dx + dy * dy;
+
+        const t = lengthSquared === 0
+          ? 0
+          : Math.max(0, Math.min(1,
+              ((point.x * 10 - x1) * dx +
+              (point.y * 6.4 - y1) * dy) / lengthSquared
+            ));
+
+        const nearestX = x1 + t * dx;
+        const nearestY = y1 + t * dy;
+
+        distance = Math.hypot(
+          point.x * 10 - nearestX,
+          point.y * 6.4 - nearestY
+        );
+
+      }
+
+      if (distance <= tolerance && distance < closestDistance) {
+
+        closestDistance = distance;
+        closestIndex = index;
+
+      }
+
+    });
+
+    if (closestIndex !== -1) {
 
       snapshot();
 
-      state.drawings.pop();
+      state.drawings.splice(closestIndex, 1);
 
       render();
+
+      showToast('Drawing erased');
 
     }
 
@@ -2059,8 +2320,8 @@ pitch.addEventListener('pointerup', event => {
 
   state.drawings.push({
     type: drawStart.type,
-    // Only arrows get a style, and only while the toggle is on.
-    style: (state.standardsMode && drawStart.type === 'arrow')
+    // Apply the selected style to every arrow.
+    style: drawStart.type === 'arrow'
       ? state.arrowStyle
       : null,
     x1: drawStart.x,
@@ -2178,7 +2439,7 @@ let animationTrail = null;
 let animationTargetIndex = null;
 
 // Where the ball started the current animation move.
-let animationBallStart = null;
+let animationBallsStart = null;
 
 function startAnimationTrail() {
 
@@ -2189,7 +2450,13 @@ function startAnimationTrail() {
     ])
   );
 
-  animationBallStart = deepCopy(state.ball);
+  // Where every ball started this move, by ID.
+  animationBallsStart = new Map(
+    state.balls.map(ball => [
+      ball.id,
+      { x: ball.x, y: ball.y }
+    ])
+  );
 
 }
 
@@ -2301,13 +2568,31 @@ function drawMovementLines(svgNamespace) {
       ? new Map(targetFrame.positions.map(position => [position.id, position]))
       : null;
 
-        // Is the ball being carried by a player during this move?
-    const carrierId = findBallCarrierId(
-      animationBallStart,
-      targetFrame ? targetFrame.ball : null,
-      animationTrail,
-      targetPositions
+    // Which balls are being carried by a player during this move?
+    const targetBalls = new Map(
+      targetFrame
+        ? (targetFrame.balls || []).map(ball => [ball.id, ball])
+        : []
     );
+
+    const ballCarriers = new Map();   // ball id -> carrier player id
+
+    const carrierIds = new Set();     // every player carrying a ball
+
+    state.balls.forEach(ball => {
+
+      const carrier = findBallCarrierId(
+        animationBallsStart ? animationBallsStart.get(ball.id) : null,
+        targetBalls.get(ball.id) || null,
+        animationTrail,
+        targetPositions
+      );
+
+      ballCarriers.set(ball.id, carrier);
+
+      if (carrier) carrierIds.add(carrier);
+
+    });
 
     state.players.forEach(player => {
 
@@ -2316,7 +2601,7 @@ function drawMovementLines(svgNamespace) {
       if (!start) return;
 
       // The carrier gets the squiggle instead of dashed lines.
-      if (player.id === carrierId) return;
+      if (carrierIds.has(player.id)) return;
 
       // Planned path: start to destination, visible before the player moves.
       if (targetPositions) {
@@ -2357,81 +2642,90 @@ function drawMovementLines(svgNamespace) {
 
     });
 
-        // Ball: planned pass path, plus the line behind the moving ball.
-    if (animationBallStart) {
+    // Balls: planned pass path, plus the line behind each moving ball.
+    if (animationBallsStart) {
 
-      const ballTarget = targetFrame ? targetFrame.ball : null;
+      state.balls.forEach(ball => {
 
-      if (
-        ballTarget &&
-        Math.hypot(
-          ballTarget.x - animationBallStart.x,
-          ballTarget.y - animationBallStart.y
-        ) >= MOVEMENT_THRESHOLD
-      ) {
+        const startBall = animationBallsStart.get(ball.id);
 
-        lines.push({
-          x1: animationBallStart.x * 10,
-          y1: animationBallStart.y * 6.4,
-          x2: ballTarget.x * 10,
-          y2: ballTarget.y * 6.4,
-          arrow: true,
-          opacity: 0.45,
-          solid: true,
-          squiggle: !!carrierId
-        
-        });
+        if (!startBall) return;
 
-      }
+        const ballTarget = targetBalls.get(ball.id) || null;
 
-            if (
-        Math.hypot(
-          state.ball.x - animationBallStart.x,
-          state.ball.y - animationBallStart.y
-        ) >= MOVEMENT_THRESHOLD
-      ) {
+        const carrierId = ballCarriers.get(ball.id);
 
-        if (carrierId && ballTarget) {
-
-          // Solid part = the stretch of the planned path already covered.
-          const fullLength = Math.hypot(
-            (ballTarget.x - animationBallStart.x) * 10,
-            (ballTarget.y - animationBallStart.y) * 6.4
-          );
-
-          const coveredLength = Math.hypot(
-            (state.ball.x - animationBallStart.x) * 10,
-            (state.ball.y - animationBallStart.y) * 6.4
-          );
+        if (
+          ballTarget &&
+          Math.hypot(
+            ballTarget.x - startBall.x,
+            ballTarget.y - startBall.y
+          ) >= MOVEMENT_THRESHOLD
+        ) {
 
           lines.push({
-            x1: animationBallStart.x * 10,
-            y1: animationBallStart.y * 6.4,
+            x1: startBall.x * 10,
+            y1: startBall.y * 6.4,
             x2: ballTarget.x * 10,
             y2: ballTarget.y * 6.4,
-            // Once fully covered, the arrowhead turns solid too.
-            arrow: coveredLength >= fullLength - 1,
-            opacity: 1,
+            arrow: true,
+            opacity: 0.45,
             solid: true,
-            squiggle: true,
-            drawUpTo: coveredLength
-          });
-
-        } else {
-
-          lines.push({
-            x1: animationBallStart.x * 10,
-            y1: animationBallStart.y * 6.4,
-            x2: state.ball.x * 10,
-            y2: state.ball.y * 6.4,
-            arrow: false,
-            opacity: 0.9,
-            solid: true
+            squiggle: !!carrierId
           });
 
         }
 
-      }
+        if (
+          Math.hypot(
+            ball.x - startBall.x,
+            ball.y - startBall.y
+          ) >= MOVEMENT_THRESHOLD
+        ) {
+
+          if (carrierId && ballTarget) {
+
+            // Solid part = the stretch of the planned path already covered.
+            const fullLength = Math.hypot(
+              (ballTarget.x - startBall.x) * 10,
+              (ballTarget.y - startBall.y) * 6.4
+            );
+
+            const coveredLength = Math.hypot(
+              (ball.x - startBall.x) * 10,
+              (ball.y - startBall.y) * 6.4
+            );
+
+            lines.push({
+              x1: startBall.x * 10,
+              y1: startBall.y * 6.4,
+              x2: ballTarget.x * 10,
+              y2: ballTarget.y * 6.4,
+              // Once fully covered, the arrowhead turns solid too.
+              arrow: coveredLength >= fullLength - 1,
+              opacity: 1,
+              solid: true,
+              squiggle: true,
+              drawUpTo: coveredLength
+            });
+
+          } else {
+
+            lines.push({
+              x1: startBall.x * 10,
+              y1: startBall.y * 6.4,
+              x2: ball.x * 10,
+              y2: ball.y * 6.4,
+              arrow: false,
+              opacity: 0.9,
+              solid: true
+            });
+
+          }
+
+        }
+
+      });
 
     }
 
@@ -2476,34 +2770,45 @@ function drawMovementLines(svgNamespace) {
 
     });
 
-    // Don't draw a separate ball arrow when it is attached to a player.
-    const ballIsAttached =
-      drag &&
-      (
-        (drag.type === 'player' && drag.carriesBall) ||
-        (drag.type === 'ball' && drag.carriesPlayer)
-      );
+    // Draw an arrow for every ball that moves in the next frame.
+    const nextBalls = new Map(
+      (nextFrame.balls || []).map(ball => [ball.id, ball])
+    );
 
-    if (
-      !ballIsAttached &&
-      nextFrame.ball &&
-      Math.hypot(
-        nextFrame.ball.x - state.ball.x,
-        nextFrame.ball.y - state.ball.y
-      ) >= MOVEMENT_THRESHOLD
-    ) {
+    state.balls.forEach(ball => {
+
+      // Don't draw a separate arrow for a ball attached to a player.
+      const ballIsAttached =
+        drag &&
+        (
+          (drag.type === 'player' && drag.carriesBall && drag.carriedBallId === ball.id) ||
+          (drag.type === 'ball' && drag.carriesPlayer && drag.id === ball.id)
+        );
+
+      if (ballIsAttached) return;
+
+      const target = nextBalls.get(ball.id);
+
+      if (!target) return;
+
+      if (
+        Math.hypot(
+          target.x - ball.x,
+          target.y - ball.y
+        ) < MOVEMENT_THRESHOLD
+      ) return;
 
       lines.push({
-        x1: state.ball.x * 10,
-        y1: state.ball.y * 6.4,
-        x2: nextFrame.ball.x * 10,
-        y2: nextFrame.ball.y * 6.4,
+        x1: ball.x * 10,
+        y1: ball.y * 6.4,
+        x2: target.x * 10,
+        y2: target.y * 6.4,
         arrow: true,
         opacity: 0.85,
         solid: true
       });
 
-    }
+    });
 
   }
 
@@ -3162,12 +3467,168 @@ function getSquigglePoints(drawing) {
 const standardsToggle = document.getElementById('standardsToggle');
 const standardsPanel = document.getElementById('standardsPanel');
 
+// RIGHT-SIDE TOOL OPTIONS PANEL
+const appShell = document.querySelector('.app-shell');
+const toolOptionsPanel = document.getElementById('toolOptionsPanel');
+const toolOptionsContent = document.getElementById('toolOptionsContent');
+
+const toolOptionsTitle = document.getElementById('toolOptionsTitle');
+const toolOptionsDescription = document.getElementById('toolOptionsDescription');
+
+let toolOptionsOpen = false;
+
+
+// Move existing tool settings into the new right-side panel.
+[
+  standardsPanel,
+  document.getElementById('groupPanel'),
+  document.getElementById('zonePanel')
+].forEach(panel => {
+
+  if (panel) {
+    toolOptionsContent.appendChild(panel);
+  }
+
+});
+
+
+// Update the panel based on the selected tool.
+function updateToolOptionsPanel(open = true) {
+
+  toolOptionsOpen = open;
+
+  appShell.classList.toggle('tool-options-open', open);
+  toolOptionsPanel.classList.toggle('is-open', open);
+
+  toolOptionsPanel.setAttribute('aria-hidden', String(!open));
+
+  const drawingToolOptions = document.getElementById('drawingToolOptions');
+
+  if (drawingToolOptions) {
+    drawingToolOptions.hidden =
+      state.tool !== 'arrow' && state.tool !== 'draw';
+  }
+
+  const addToolOptions = document.getElementById('addToolOptions');
+
+  if (addToolOptions) {
+    addToolOptions.hidden =
+      state.tool !== 'add' &&
+      state.tool !== 'player' &&
+      state.tool !== 'ball';
+  }
+
+  const eraserToolOptions = document.getElementById('eraserToolOptions');
+
+  if (eraserToolOptions) {
+    eraserToolOptions.hidden = state.tool !== 'eraser';
+  }
+
+  const options = {
+
+    select: ['SELECT OPTIONS', 'Select and reposition players and the ball.'],
+
+    add: ['ADD OPTIONS', 'Choose what you want to add to the board.'],
+
+    player: ['ADD OPTIONS', 'Choose what you want to add to the board.'],
+
+    ball: ['ADD OPTIONS', 'Choose what you want to add to the board.'],
+
+    arrow: ['ARROW & DRAW OPTIONS', 'Choose to use arrows or free draw.'],
+
+    draw: ['ARROW & DRAW OPTIONS', 'Choose to use arrows or free draw.'],
+
+    eraser: ['ERASER OPTIONS', 'Choose what to remove from the board.'],
+
+    group: ['GROUP OPTIONS', 'Create and manage tactical player groups.'],
+
+    zones: ['ZONE OPTIONS', 'Create and customize tactical zones.']
+
+  };
+
+  const selected = options[state.tool] || options.select;
+
+  toolOptionsTitle.textContent = selected[0];
+  toolOptionsDescription.textContent = selected[1];
+
+}
+
+// Handle the Home Player, Away Player, and Ball options.
+document.querySelectorAll('.add-option-button').forEach(button => {
+
+  button.addEventListener('click', () => {
+
+    if (isAnimating) return;
+
+    const action = button.dataset.addAction;
+
+    if (action === 'home-player') {
+      state.activeTeam = 'home';
+      state.tool = 'player';
+    }
+
+    else if (action === 'away-player') {
+      state.activeTeam = 'away';
+      state.tool = 'player';
+    }
+
+    else if (action === 'ball') {
+      state.tool = 'ball';
+    }
+
+    // Keep the Add options panel open.
+    updateToolOptionsPanel(true);
+
+    // Update the selected team and its settings.
+    render();
+
+    // Keep the Add button highlighted.
+    document.querySelectorAll('.tool-button').forEach(toolButton => {
+      toolButton.classList.toggle(
+        'active',
+        (
+          toolButton.dataset.tool === 'add' &&
+          ['add', 'player', 'ball'].includes(state.tool)
+        ) ||
+        (
+          toolButton.id === 'lineArrowToolButton' &&
+          (state.tool === 'arrow' || state.tool === 'draw')
+        ) ||
+        (
+          toolButton.dataset.tool === state.tool &&
+          state.tool !== 'player' &&
+          state.tool !== 'ball'
+        )
+      );
+    });
+
+    const hints = {
+      player: 'Click anywhere on the pitch to add a player.',
+      ball: 'Click the pitch to add a ball.'
+    };
+
+    document.getElementById('boardHint').textContent = hints[state.tool];
+
+  });
+
+});
+
+// Close the options panel.
+document.getElementById('closeToolOptions').addEventListener('click', () => {
+
+  updateToolOptionsPanel(false);
+
+});
+
 function updateStandardsUI() {
 
-  standardsPanel.hidden = !state.standardsMode;
+  standardsPanel.hidden = state.tool !== 'arrow';
 
   document.querySelectorAll('.style-button').forEach(button => {
-    button.classList.toggle('active', button.dataset.style === state.arrowStyle);
+    button.classList.toggle(
+      'active',
+      button.dataset.style === state.arrowStyle
+    );
   });
 
 }
@@ -3182,10 +3643,6 @@ standardsToggle.addEventListener('change', () => {
 
   state.standardsMode = standardsToggle.checked;
 
-  if (state.standardsMode) {
-    document.querySelector('.tool-button[data-tool="arrow"]').click();
-  }
-
   updateStandardsUI();
 
   showToast(
@@ -3196,7 +3653,7 @@ standardsToggle.addEventListener('change', () => {
 
 });
 
-// Picking Pass / Run / Dribble also selects the Arrow tool.
+// Picking Pass / Run / Dribble changes the arrow style.
 document.querySelectorAll('.style-button').forEach(button => {
 
   button.addEventListener('click', () => {
@@ -3204,8 +3661,6 @@ document.querySelectorAll('.style-button').forEach(button => {
     if (isAnimating) return;
 
     state.arrowStyle = button.dataset.style;
-
-    document.querySelector('.tool-button[data-tool="arrow"]').click();
 
     updateStandardsUI();
 
@@ -3224,7 +3679,31 @@ document.querySelectorAll('.tool-button').forEach(button => {
 
     if (isAnimating) return;
 
+    const sameTool = state.tool === button.dataset.tool;
+
     state.tool = button.dataset.tool;
+
+    // Update the combined Arrow / Draw button.
+    const lineArrowToolButton = document.getElementById('lineArrowToolButton');
+
+    if (lineArrowToolButton && (state.tool === 'arrow' || state.tool === 'draw')) {
+
+      lineArrowToolButton.dataset.tool = state.tool;
+
+      lineArrowToolButton.querySelector('.tool-icon').textContent =
+        state.tool === 'draw' ? '✎' : '↗';
+
+      lineArrowToolButton.querySelector('.tool-label').textContent =
+        state.tool === 'draw' ? 'Draw' : 'Arrow';
+
+    }
+
+    // Open the panel when changing tools.
+    // Clicking the same tool again toggles the panel.
+    updateToolOptionsPanel(
+      sameTool ? !toolOptionsOpen : true
+    );
+    updateStandardsUI();
 
     // Keep pending zones when switching tools, but hide their controls
     // unless the Zones tool is selected.
@@ -3268,7 +3747,15 @@ document.querySelectorAll('.tool-button').forEach(button => {
 
       toolButton.classList.toggle(
         'active',
-        toolButton === button
+        (
+          toolButton.dataset.tool === 'add' &&
+          ['add', 'player', 'ball'].includes(state.tool)
+        ) ||
+        (
+          toolButton.dataset.tool === state.tool &&
+          state.tool !== 'player' &&
+          state.tool !== 'ball'
+        )
       );
 
     });
@@ -3281,7 +3768,7 @@ document.querySelectorAll('.tool-button').forEach(button => {
 
       player: 'Click anywhere on the pitch to add a player.',
 
-      ball: 'Click the pitch to move the ball.',
+      ball: 'Click the pitch to add a ball.',
 
       arrow: 'Click and drag to draw an arrow.',
 
@@ -3415,13 +3902,8 @@ document.getElementById('resetFieldBtn').addEventListener(
 
     ];
 
-    state.ball = {
-
-      x: 50,
-
-      y: 50
-
-    };
+    // Reset goes back to a single ball in the centre.
+    state.balls = [ createBall(50, 50) ];
 
     // New players have new IDs, so start a fresh animation.
     state.animation = null;
@@ -3640,7 +4122,7 @@ function restoreBoardState(savedState) {
     away: '#ef0808'
   };
 
-  state.ball = previous.ball;
+  state.balls = normalizeBalls(previous);
 
   state.drawings = previous.drawings;
 
@@ -3720,50 +4202,68 @@ function redo() {
    26. CLEAR THE BOARD
    ========================================================= */
 
-document.getElementById('clearBtn').addEventListener(
+
+
+// Clear all tactical markings without removing players, balls, groups, or zones.
+document.getElementById('clearMarkingsBtn').addEventListener(
   'click',
   () => {
 
     if (isAnimating) return;
 
-    if (!confirm('Clear all players and drawings from the board?')) {
-
+    if (state.drawings.length === 0) {
+      showToast('No markings to clear');
       return;
+    }
 
+    if (!confirm('Clear all arrows, lines, and freehand drawings?')) {
+      return;
+    }
+
+    snapshot();
+
+    state.drawings = [];
+
+    render();
+
+    showToast('All markings cleared');
+
+  }
+);
+
+
+// Clear the entire tactical board.
+document.getElementById('clearBoardBtn').addEventListener(
+  'click',
+  () => {
+
+    if (isAnimating) return;
+
+    if (!confirm('Clear the entire board? This will remove all players, balls, drawings, groups, and zones.')) {
+      return;
     }
 
     snapshot();
 
     state.players = [];
-
+    state.balls = [];
     state.drawings = [];
-
     state.groups = [];
-
     state.zones = [];
+
+    state.groupSelection = [];
+    state.selectedId = null;
+
+    state.animation = null;
 
     pendingZone = null;
     zoneStart = null;
 
     document.getElementById('zoneConfirmControls').hidden = true;
 
-    state.groupSelection = [];
-
-    state.animation = null;
-
-    state.ball = {
-
-      x: 50,
-
-      y: 50
-
-    };
-
-    state.selectedId = null;
-
     render();
 
-    showToast('Board cleared');
+    showToast('Entire board cleared');
 
   }
 );
@@ -3789,13 +4289,13 @@ document.getElementById('flipBtn').addEventListener(
 
     });
 
-    state.ball = {
+    state.balls.forEach(ball => {
 
-      x: 100 - state.ball.x,
+      ball.x = 100 - ball.x;
 
-      y: 100 - state.ball.y
+      ball.y = 100 - ball.y;
 
-    };
+    });
 
     render();
 
@@ -3842,7 +4342,7 @@ function buildSavePayload() {
     players: state.players,
     teamColors: state.teamColors,
     fieldOrientation: state.fieldOrientation,
-    ball: state.ball,
+    balls: state.balls,
     drawings: state.drawings,
     groups: state.groups,
     zones: state.zones,
@@ -3962,6 +4462,24 @@ function validateSavedData(data) {
 
   if (!playersAreValid) return 'Player data is damaged';
 
+  // New format: a list of balls.
+  if (data.balls !== undefined) {
+
+    if (!Array.isArray(data.balls)) return 'Ball data is damaged';
+
+    if (data.balls.length > 200) return 'This file has too many balls';
+
+    const ballsAreValid = data.balls.every(ball =>
+      ball &&
+      Number.isFinite(ball.x) &&
+      Number.isFinite(ball.y)
+    );
+
+    if (!ballsAreValid) return 'Ball data is damaged';
+
+  }
+
+  // Old format: a single ball.
   if (data.ball && !(Number.isFinite(data.ball.x) && Number.isFinite(data.ball.y))) {
     return 'Ball data is damaged';
   }
@@ -4076,7 +4594,7 @@ function applySavedData(saved) {
 
   applyFieldOrientation();
 
-  state.ball = saved.ball || state.ball;
+  state.balls = normalizeBalls(saved);
 
   state.drawings = saved.drawings || [];
 
@@ -4110,6 +4628,38 @@ function applySavedData(saved) {
     state.animation.frames.forEach(frame => {
 
       if (!Array.isArray(frame.positions)) frame.positions = [];
+
+      // Balls: the new format is frame.balls. Older saves have frame.ball.
+      if (Array.isArray(frame.balls)) {
+
+        frame.balls = frame.balls.filter(ball =>
+          ball &&
+          typeof ball.id === 'string' &&
+          Number.isFinite(ball.x) &&
+          Number.isFinite(ball.y)
+        );
+
+      } else if (
+        frame.ball &&
+        Number.isFinite(frame.ball.x) &&
+        Number.isFinite(frame.ball.y) &&
+        state.balls.length > 0
+      ) {
+
+        // Older save with a single ball: reuse that ball's ID.
+        frame.balls = [{
+          id: state.balls[0].id,
+          x: frame.ball.x,
+          y: frame.ball.y
+        }];
+
+      } else {
+
+        frame.balls = deepCopy(state.balls);
+
+      }
+
+      delete frame.ball;
 
       if (!Array.isArray(frame.drawings)) {
         frame.drawings = deepCopy(saved.drawings || []);
@@ -4186,13 +4736,20 @@ async function exportAnimatedVideo(board) {
 
   const FPS = 30;
   const CAPTURE_SCALE = 2;
-  const STEPS = Math.round((FRAME_ANIMATION_DURATION / 1000) * FPS);
+
+  const EXPORT_SPEED = getAnimationSpeed();
+
+  const STEPS = Math.round(
+    (FRAME_ANIMATION_DURATION / EXPORT_SPEED / 1000) * FPS
+  );
+
   const isVertical = state.fieldOrientation === 'vertical';
 
   const OUTPUT_WIDTH = isVertical ? 2200 : 3644;
   const OUTPUT_HEIGHT = isVertical ? 3644 : 2200;
-  const HOLD_START_MS = 700;
-  const HOLD_END_MS = 1000;
+
+  const HOLD_START_MS = 700 / EXPORT_SPEED;
+  const HOLD_END_MS = 1000 / EXPORT_SPEED;
   const BITRATE = 30000000;          // 30 Mbps keeps thin lines and borders crisp
   const PITCH_GREEN = '#2d8054';
 
@@ -4239,19 +4796,25 @@ async function exportAnimatedVideo(board) {
       }
     });
 
-    const fb = frames[fromIndex].ball;
-    const tb = frames[toIndex].ball;
+    const fromBalls = new Map((frames[fromIndex].balls || []).map(b => [b.id, b]));
+    const toBalls = new Map((frames[toIndex].balls || []).map(b => [b.id, b]));
 
-    state.ball = {
-      x: fb.x + (tb.x - fb.x) * t,
-      y: fb.y + (tb.y - fb.y) * t
-    };
+    state.balls.forEach(ball => {
 
-    const ballEl = playersLayer.querySelector('.ball');
-    if (ballEl) {
-      ballEl.style.left = `${state.ball.x}%`;
-      ballEl.style.top = `${state.ball.y}%`;
-    }
+      const a = fromBalls.get(ball.id);
+      const b = toBalls.get(ball.id);
+      if (!a || !b) return;
+
+      ball.x = a.x + (b.x - a.x) * t;
+      ball.y = a.y + (b.y - a.y) * t;
+
+      const el = getBallElement(ball.id);
+      if (el) {
+        el.style.left = `${ball.x}%`;
+        el.style.top = `${ball.y}%`;
+      }
+
+    });
 
     renderDrawings();
   }
@@ -4275,8 +4838,11 @@ async function exportAnimatedVideo(board) {
       animationTargetIndex = index;          // <-- add
       renderDrawings();
 
-      // Hold on the planned paths before the move starts.   <-- add these 2 lines
-      shots.push({ blob: await grab(), repeat: Math.round(PREVIEW_HOLD_MS / 1000 * FPS) });
+      // Hold on the planned paths before the move starts.
+      shots.push({
+        blob: await grab(),
+        repeat: Math.round((PREVIEW_HOLD_MS / EXPORT_SPEED) / 1000 * FPS)
+      });
 
       for (let step = 1; step <= STEPS; step++) {
 
@@ -4398,214 +4964,6 @@ async function exportAnimatedVideo(board) {
   }
 }
 
-
-/* =========================================================
-   ANIMATED GIF EXPORT
-   ========================================================= */
-
-async function exportAnimatedGif(board) {
-
-  if (typeof GIF === 'undefined') {
-
-    showToast('GIF export library has not loaded');
-
-    return;
-
-  }
-
-  const originalFrame = state.animation.activeFrame;
-
-  const gif = new GIF({
-
-    workers: 2,
-
-    quality: 10,
-
-    workerScript:
-      './gif.worker.js'
-
-  });
-
-  const canvasOptions = {
-
-    scale: 1,
-
-    backgroundColor: null,
-
-    useCORS: true,
-
-    logging: false,
-
-    onclone: prepareCloneForExport
-
-  };
-
-
-  // Capture the current board as a GIF frame.
-
-  async function captureGifFrame(delay = 100) {
-
-    const canvas = await html2canvas(
-      board,
-      canvasOptions
-    );
-
-    gif.addFrame(canvas, {
-
-      copy: true,
-
-      delay: delay
-
-    });
-
-  }
-
-
-  try {
-
-    showToast('Generating animated GIF...');
-
-    // Always begin at Frame 1.
-
-    applyAnimationFrame(0);
-
-    render();
-
-    await captureGifFrame(500);
-
-
-    // Animate through every remaining frame.
-
-    isAnimating = true;
-
-    updateAnimationControls();
-
-    for (
-      let index = 1;
-      index < state.animation.frames.length;
-      index++
-    ) {
-
-      let finished = false;
-
-      // Capture the board while it is moving.
-      const capturePromise = (async () => {
-
-        let lastCapture = performance.now();
-
-        while (!finished) {
-
-          const canvas = await html2canvas(
-            board,
-            canvasOptions
-          );
-
-          const now = performance.now();
-
-          const delay = Math.max(
-            50,
-            Math.min(300, now - lastCapture)
-          );
-
-          gif.addFrame(canvas, {
-
-            copy: true,
-
-            delay: delay
-
-          });
-
-          lastCapture = now;
-
-          await new Promise(resolve =>
-            setTimeout(resolve, 100)
-          );
-
-        }
-
-      })();
-
-      // Use your existing animation system.
-      await animateToFrame(index);
-
-      finished = true;
-
-      await capturePromise;
-
-    }
-
-    // Hold the final frame briefly.
-    await captureGifFrame(700);
-
-    isAnimating = false;
-
-    // Restore the user's previously selected frame.
-    applyAnimationFrame(originalFrame);
-
-    render();
-
-    updateAnimationControls();
-
-
-    // Generate the final GIF.
-    gif.on('finished', blob => {
-
-      const url = URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-
-      const safeName = state.boardName
-        .replace(/[^a-z0-9]/gi, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-
-      link.download =
-        `${safeName || 'TACTCL-Board'}.gif`;
-
-      link.href = url;
-
-      link.click();
-
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 10000);
-
-      showToast('Animated GIF exported successfully!');
-
-    });
-
-    gif.on('error', error => {
-
-      console.error('GIF encoding error:', error);
-
-      showToast('Could not generate animated GIF');
-
-    });
-
-    gif.render();
-
-  } catch (error) {
-
-    isAnimating = false;
-
-    applyAnimationFrame(originalFrame);
-
-    render();
-
-    updateAnimationControls();
-
-    console.error('GIF export error:', error);
-
-    console.error('Error details:', error.message);
-
-    showToast(`GIF export failed: ${error.message}`);
-
-  }
-
-}
-
-
-
 /* =========================================================
    31. EXPORT BOARD
    Supports PNG and animated GIF exports.
@@ -4648,23 +5006,19 @@ document.getElementById('exportBtn').addEventListener(
     if (state.animation && state.animation.frames.length > 1) {
 
       const exportChoice = window.prompt(
-        'Choose export format:\n\n1 = Animated GIF\n2 = Video (MP4)\n3 = Static PNG'
+        'Choose export format:\n\n1 = Video (MP4)\n2 = Static PNG'
       );
 
       if (exportChoice === '1') {
-        await exportAnimatedGif(board);
-        return;
-      }
-
-      if (exportChoice === '2') {
         await exportAnimatedVideo(board);
         return;
       }
 
-      if (exportChoice === '3') {
+      if (exportChoice === '2') {
         // Continue to the existing static PNG export below.
-      } 
-      if(exportChoice === null){return;} else {
+      } else if (exportChoice === null) {
+        return;
+      } else {
         showToast('Invalid export selection');
         return;
       }

@@ -230,40 +230,18 @@
           </button>
 
 
-          <!-- Add a new player -->
-          <button class="tool-button" data-tool="player">
+          <!-- Add options -->
+          <button class="tool-button" data-tool="add">
             <span>+</span>
-            Player
+            Add
           </button>
 
 
-          <!-- Add or reposition the ball -->
-          <button class="tool-button" data-tool="ball">
-            <span>⚽</span>
-            Ball
+          <!-- Combined Arrow / Draw tool -->
+          <button class="tool-button" id="lineArrowToolButton" data-tool="arrow">
+            <span class="tool-icon">↗</span>
+            <span class="tool-label">Arrow</span>
           </button>
-
-
-          <!-- Draw an arrow -->
-          <button class="tool-button" data-tool="arrow">
-            <span>↗</span>
-            Arrow
-          </button>
-
-
-          <!-- Draw a straight line -->
-          <button class="tool-button" data-tool="line">
-            <span>／</span>
-            Line
-          </button>
-
-
-          <!-- Freehand drawing -->
-          <button class="tool-button" data-tool="draw">
-            <span>✎</span>
-            Draw
-          </button>
-
 
           <!-- Remove players and drawings -->
           <button class="tool-button" data-tool="eraser">
@@ -551,10 +529,7 @@
             Reset field
           </button>
 
-          <!-- Clear Field -->
-          <button class="btn" id="clearBtn">
-            Clear field
-          </button>
+          
 
         </div>
 
@@ -635,12 +610,25 @@
           </button>
 
           <button class="btn" id="playNextFrameBtn">
-            ▶ Play Next Frame
+            ▶ Play Frame
           </button>
 
           <button class="btn btn-primary" id="playFullAnimationBtn">
             ▶ Play Full Animation
           </button>
+
+          <label for="animationSpeed" class="animation-speed-label">
+            Speed
+          </label>
+
+          <select id="animationSpeed" class="select-control">
+            <option value="0.25">0.25x</option>
+            <option value="0.5">0.5×</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1×</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2×</option>
+          </select>
 
         </div>
 
@@ -674,6 +662,97 @@
 
     </section>
 
+    <!-- RIGHT-SIDE TOOL OPTIONS PANEL -->
+    <aside class="tool-options-panel" id="toolOptionsPanel"
+           aria-hidden="true">
+
+      <div class="tool-options-header">
+
+        <div>
+          <h2 id="toolOptionsTitle">TOOL OPTIONS</h2>
+          <p id="toolOptionsDescription">
+            Select a tool to view its options.
+          </p>
+        </div>
+
+        <button type="button" id="closeToolOptions"
+                class="close-tool-options">
+          &times;
+        </button>
+
+      </div>
+
+      <div id="toolOptionsContent">
+
+        <div id="drawingToolOptions" hidden>
+
+          <h3>DRAWING TOOL</h3>
+
+          <div class="tool-grid">
+
+            <button class="tool-button" data-tool="arrow" type="button">
+              <span>↗</span>
+              Arrow
+            </button>
+
+            <button class="tool-button" data-tool="draw" type="button">
+              <span>✎</span>
+              Draw
+            </button>
+
+          </div>
+
+        </div>
+
+        <div id="addToolOptions" hidden>
+
+          <h3>ADD TO BOARD</h3>
+
+          <div class="tool-grid">
+
+            <button class="add-option-button" data-add-action="home-player" type="button">
+              <span>+</span>
+              Home Player
+            </button>
+
+            <button class="add-option-button" data-add-action="away-player" type="button">
+              <span>+</span>
+              Away Player
+            </button>
+
+            <button class="add-option-button" data-add-action="ball" type="button">
+              <span>⚽</span>
+              Ball
+            </button>
+
+          </div>
+
+        </div>
+
+        <div id="eraserToolOptions" hidden>
+
+          <h3>ERASER OPTIONS</h3>
+
+          <button
+            class="wide-button"
+            id="clearMarkingsBtn"
+            type="button">
+            Clear Markings
+          </button>
+
+          <button
+            class="wide-button"
+            id="clearBoardBtn"
+            type="button">
+            Clear Board
+          </button>
+
+        </div>
+
+    </div>
+
+    </aside>
+
   </main>
 
 
@@ -687,7 +766,6 @@
 
   <!-- Library used to turn the tactics board into an image -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js"></script>
   <!-- =====================================================
        8. JAVASCRIPT
