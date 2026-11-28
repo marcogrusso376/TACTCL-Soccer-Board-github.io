@@ -1501,7 +1501,6 @@ function escapeHtml(value) {
 
 }
 
-
 /* =========================================================
    11. PLAYER EDITOR
    ========================================================= */
@@ -1511,8 +1510,6 @@ function updateEditor() {
   const player = state.players.find(
     p => p.id === state.selectedId
   );
-
-  document.getElementById('emptySelection').hidden = !!player;
 
   document.getElementById('playerFields').hidden = !player;
 
@@ -3524,9 +3521,15 @@ function updateToolOptionsPanel(open = true) {
     eraserToolOptions.hidden = state.tool !== 'eraser';
   }
 
+  const selectToolOptions = document.getElementById('selectToolOptions');
+
+  if (selectToolOptions) {
+    selectToolOptions.hidden = state.tool !== 'select';
+  }
+
   const options = {
 
-    select: ['SELECT OPTIONS', 'Select and reposition players and the ball.'],
+    select: ['SELECT OPTIONS', 'Select, update, and reposition players and the ball.'],
 
     add: ['ADD OPTIONS', 'Choose what you want to add to the board.'],
 

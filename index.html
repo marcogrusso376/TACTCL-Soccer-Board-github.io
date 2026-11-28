@@ -274,7 +274,7 @@
 
         <!-- DIAGRAM STANDARDS TOGGLE -->
         <label class="switch-row" for="standardsToggle">
-          <span>Diagram standards</span>
+          <span>Automatic Arrows</span>
           <span class="switch">
             <input type="checkbox" id="standardsToggle">
             <span class="switch-slider"></span>
@@ -397,91 +397,6 @@
 
           <!-- Existing zones -->
           <div id="zonesList" class="groups-list"></div>
-
-        </div>
-
-      </section>
-
-
-
-      <!-- PLAYER EDITOR -->
-      <section class="sidebar-section player-editor">
-
-        <h2 class="section-label">PLAYER SETTINGS</h2>
-
-
-        <!-- Shown when no player is selected -->
-        <p class="empty-selection" id="emptySelection">
-
-          Select a player on the pitch to edit their
-          name, number, and team.
-
-        </p>
-
-
-        <!-- Shown when a player is selected -->
-        <div id="playerFields" hidden>
-
-
-          <!-- Change player name -->
-          <label class="field-label" for="playerName">
-            Player name
-          </label>
-
-          <input
-            class="text-control"
-            type="text"
-            id="playerName"
-            placeholder="Enter player name"
-          >
-
-
-          <!-- Change shirt number -->
-          <label class="field-label" for="playerNumber">
-            Shirt number
-          </label>
-
-          <input
-            class="text-control"
-            type="number"
-            id="playerNumber"
-            min="1"
-            max="99"
-          >
-
-
-          <!-- Change player team -->
-          <label class="field-label" for="playerTeam">
-            Team
-          </label>
-
-          <select class="select-control" id="playerTeam">
-
-            <option value="home">Home</option>
-            <option value="away">Away</option>
-
-          </select>
-
-          <!-- Change player role -->
-          <label class="field-label" for="playerRole">
-            Player role
-          </label>
-
-          <select class="select-control" id="playerRole">
-
-            <option value="outfield">Outfield player</option>
-            <option value="goalkeeper">Goalkeeper</option>
-
-          </select>
-
-          <!-- Delete selected player -->
-          <button
-            class="wide-button danger-button"
-            id="deletePlayerBtn">
-
-            Delete player
-
-          </button>
 
         </div>
 
@@ -626,7 +541,7 @@
             <option value="0.5">0.5×</option>
             <option value="0.75">0.75x</option>
             <option value="1" selected>1×</option>
-            <option value="1.5">1.5x</option>
+            <option value="1.5"></option>
             <option value="2">2×</option>
           </select>
 
@@ -746,6 +661,77 @@
             type="button">
             Clear Board
           </button>
+
+        </div>
+
+
+        <div id="selectToolOptions" hidden>
+
+          <div id="playerFields" hidden>
+
+            <h3>PLAYER OPTIONS</h3>
+
+            <!-- Change player name -->
+            <label class="field-label" for="playerName">
+              Player name
+            </label>
+
+            <input
+              class="text-control"
+              type="text"
+              id="playerName"
+              placeholder="Enter player name"
+            >
+
+
+            <!-- Change shirt number -->
+            <label class="field-label" for="playerNumber">
+              Shirt number
+            </label>
+
+            <input
+              class="text-control"
+              type="number"
+              id="playerNumber"
+              min="1"
+              max="99"
+            >
+
+
+            <!-- Change player team -->
+            <label class="field-label" for="playerTeam">
+              Team
+            </label>
+
+            <select class="select-control" id="playerTeam">
+
+              <option value="home">Home</option>
+              <option value="away">Away</option>
+
+            </select>
+
+            <!-- Change player role -->
+            <label class="field-label" for="playerRole">
+              Player role
+            </label>
+
+            <select class="select-control" id="playerRole">
+
+              <option value="outfield">Outfield player</option>
+              <option value="goalkeeper">Goalkeeper</option>
+
+            </select>
+
+            <!-- Delete selected player -->
+            <button
+              class="wide-button danger-button"
+              id="deletePlayerBtn">
+
+              Delete player
+
+            </button>
+
+          </div>
 
         </div>
 

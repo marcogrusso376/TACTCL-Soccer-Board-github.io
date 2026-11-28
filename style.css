@@ -372,9 +372,10 @@ button {
 }
 
 .tool-button.active {
-  border-color: #806ed7;
-  background: var(--button);
-  color: #221a76;
+  border: 2px solid #37259a;
+  background: #c3cbd6;
+  color: #171044;
+  box-shadow: 0 0 0 1px #37259a;
 }
 
 .tool-button.active .tool-icon {
